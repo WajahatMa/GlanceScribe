@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>GlanceScribe — Record</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --surface2: #1c1c26;
+    --border: rgba(255,255,255,0.08);
+    --text: #f0f0f8;
+    --muted: #8888a8;
+    --accent: #6c63ff;
+    --accent2: #a78bfa;
+    --red: #ff4d6d;
+    --green: #34d399;
+    --amber: #fbbf24;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    padding: env(safe-area-inset-top, 16px) 16px env(safe-area-inset-bottom, 16px) 16px;
+    gap: 12px;
+    height: 100dvh;
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+    flex-shrink: 0;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .logo-icon {
+    width: 32px;
+    height: 32px;
+    background: var(--accent);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+  }
+
+  .logo-text {
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+  }
+
+  .logo-text span { color: var(--accent2); }
+
+  .status-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 5px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--muted);
+    transition: all 0.3s;
+  }
+
+  .status-pill.recording {
+    background: rgba(255, 77, 109, 0.1);
+    border-color: rgba(255, 77, 109, 0.3);
+    color: var(--red);
+  }
+
+  .status-pill.ready {
+    background: rgba(52, 211, 153, 0.1);
+    border-color: rgba(52, 211, 153, 0.3);
+    color: var(--green);
+  }
+
+  .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  .recording .dot { animation: pulse 1s ease-in-out infinite; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* Camera preview */
+  .camera-wrap {
+    flex: 1;
+    min-height: 0;
+    background: var(--surface);
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+    position: relative;
+  }
+
+  #preview {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transform: scaleX(-1); /* mirror for selfie-style */
+  }
+
+  .camera-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  /* Corner brackets */
+  .corner {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border-color: rgba(108, 99, 255, 0.6);
+    border-style: solid;
+  }
+  .corner.tl { top: 12px; left: 12px; border-width: 2px 0 0 2px; border-radius: 4px 0 0 0; }
+  .corner.tr { top: 12px; right: 12px; border-width: 2px 2px 0 0; border-radius: 0 4px 0 0; }
+  .corner.bl { bottom: 12px; left: 12px; border-width: 0 0 2px 2px; border-radius: 0 0 0 4px; }
+  .corner.br { bottom: 12px; right: 12px; border-width: 0 2px 2px 0; border-radius: 0 0 4px 0; }
+
+  .rec-badge {
+    position: absolute;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--red);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    padding: 3px 10px;
+    border-radius: 4px;
+    display: none;
+  }
+
+  .rec-badge.visible { display: block; }
+
+  .timer-badge {
+    position: absolute;
+    bottom: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.6);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    padding: 4px 12px;
+    border-radius: 20px;
+    display: none;
+    backdrop-filter: blur(8px);
+  }
+
+  .timer-badge.visible { display: block; }
+
+  /* Transcript preview */
+  .transcript-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 12px 14px;
+    flex-shrink: 0;
+    height: 90px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .transcript-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  #transcript-preview {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text);
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+  }
+
+  .transcript-empty { color: var(--muted); font-style: italic; }
+
+  /* Controls */
+  .controls {
+    flex-shrink: 0;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .btn-main {
+    flex: 1;
+    height: 58px;
+    border: none;
+    border-radius: 14px;
+    font-size: 17px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    letter-spacing: -0.3px;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .btn-main:active { transform: scale(0.97); }
+
+  .btn-start {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  .btn-stop {
+    background: var(--red);
+    color: #fff;
+  }
+
+  .btn-icon {
+    width: 58px;
+    height: 58px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--surface);
+    color: var(--muted);
+    font-size: 22px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+    transition: all 0.2s;
+  }
+
+  .btn-icon:active { transform: scale(0.95); background: var(--surface2); }
+
+  /* Stats bar */
+  .stats {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .stat {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 10px;
+    text-align: center;
+  }
+
+  .stat-val {
+    font-size: 15px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+  }
+
+  .stat-label {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 1px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: calc(env(safe-area-inset-bottom, 16px) + 80px);
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 13px;
+    padding: 10px 18px;
+    border-radius: 20px;
+    opacity: 0;
+    transition: all 0.3s;
+    white-space: nowrap;
+    z-index: 100;
+    pointer-events: none;
+  }
+
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* Loading overlay */
+  .loading-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10,10,15,0.85);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    z-index: 200;
+    display: none;
+    backdrop-filter: blur(6px);
+  }
+
+  .loading-overlay.visible { display: flex; }
+
+  .spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading-text {
+    font-size: 15px;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  .loading-text strong { color: var(--text); display: block; font-size: 17px; margin-bottom: 4px; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="logo">
+    <div class="logo-icon">👓</div>
+    <div class="logo-text">Glance<span>Scribe</span></div>
+  </div>
+  <div class="status-pill" id="status-pill">
+    <div class="dot"></div>
+    <span id="status-text">Tap Start</span>
+  </div>
+</div>
+
+<!-- Camera -->
+<div class="camera-wrap">
+  <video id="preview" autoplay playsinline muted></video>
+  <div class="camera-overlay">
+    <div class="corner tl"></div>
+    <div class="corner tr"></div>
+    <div class="corner bl"></div>
+    <div class="corner br"></div>
+    <div class="rec-badge" id="rec-badge">● REC</div>
+    <div class="timer-badge" id="timer-badge">00:00</div>
+  </div>
+</div>
+
+<!-- Live transcript preview -->
+<div class="transcript-wrap">
+  <div class="transcript-label">Live Transcript</div>
+  <div id="transcript-preview" class="transcript-empty">Transcript will appear here during recording…</div>
+</div>
+
+<!-- Stats -->
+<div class="stats">
+  <div class="stat">
+    <div class="stat-val" id="stat-lines">0</div>
+    <div class="stat-label">Lines</div>
+  </div>
+  <div class="stat">
+    <div class="stat-val" id="stat-chunks">0</div>
+    <div class="stat-label">Video</div>
+  </div>
+  <div class="stat">
+    <div class="stat-val" id="stat-dur">0s</div>
+    <div class="stat-label">Duration</div>
+  </div>
+</div>
+
+<!-- Controls -->
+<div class="controls">
+  <button class="btn-icon" id="btn-flip" title="Flip camera">🔄</button>
+  <button class="btn-main btn-start" id="btn-main">▶ Start Recording</button>
+  <button class="btn-icon" id="btn-settings" title="Settings">⚙</button>
+</div>
+
+<!-- Loading overlay -->
+<div class="loading-overlay" id="loading-overlay">
+  <div class="spinner"></div>
+  <div class="loading-text">
+    <strong id="loading-title">Processing…</strong>
+    <span id="loading-sub">Saving video and running AI analysis</span>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── State ────────────────────────────────────────────────────────────────────
+const state = {
+  recording: false,
+  mediaStream: null,
+  mediaRecorder: null,
+  scribeSocket: null,
+  audioContext: null,
+  timerInterval: null,
+  statsInterval: null,
+  startTime: null,
+  transcriptLines: [],
+  videoChunks: 0,
+  facingMode: 'environment', // back camera by default for Meta glasses scenario
+  sessionId: null,
+};
+
+// ─── DOM refs ─────────────────────────────────────────────────────────────────
+const preview = document.getElementById('preview');
+const btnMain = document.getElementById('btn-main');
+const btnFlip = document.getElementById('btn-flip');
+const statusPill = document.getElementById('status-pill');
+const statusText = document.getElementById('status-text');
+const recBadge = document.getElementById('rec-badge');
+const timerBadge = document.getElementById('timer-badge');
+const transcriptPreview = document.getElementById('transcript-preview');
+const statLines = document.getElementById('stat-lines');
+const statChunks = document.getElementById('stat-chunks');
+const statDur = document.getElementById('stat-dur');
+const loadingOverlay = document.getElementById('loading-overlay');
+const loadingTitle = document.getElementById('loading-title');
+const loadingSub = document.getElementById('loading-sub');
+const toast = document.getElementById('toast');
+
+// ─── Toast ────────────────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg, duration = 3000) {
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), duration);
+}
+
+// ─── Camera init ──────────────────────────────────────────────────────────────
+async function initCamera() {
+  try {
+    if (state.mediaStream) {
+      state.mediaStream.getTracks().forEach(t => t.stop());
+    }
+    state.mediaStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: state.facingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
+      audio: { echoCancellation: false, noiseSuppression: false, sampleRate: 16000 },
+    });
+    preview.srcObject = state.mediaStream;
+  } catch (err) {
+    showToast('⚠️ Camera access denied: ' + err.message);
+    console.error(err);
+  }
+}
+
+// ─── Flip camera ─────────────────────────────────────────────────────────────
+btnFlip.addEventListener('click', async () => {
+  if (state.recording) { showToast('Cannot flip during recording'); return; }
+  state.facingMode = state.facingMode === 'environment' ? 'user' : 'environment';
+  preview.style.transform = state.facingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)';
+  await initCamera();
+  showToast(state.facingMode === 'environment' ? '📷 Back camera' : '🤳 Front camera');
+});
+
+// ─── Timer ────────────────────────────────────────────────────────────────────
+function formatTime(ms) {
+  const s = Math.floor(ms / 1000);
+  const m = Math.floor(s / 60);
+  return `${String(m).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+}
+
+// ─── Scribe WebSocket ─────────────────────────────────────────────────────────
+async function startScribe() {
+  try {
+    const res = await fetch('/scribe-token');
+    const { token } = await res.json();
+
+    // ElevenLabs Scribe v2 realtime WebSocket
+    const ws = new WebSocket(`wss://api.elevenlabs.io/v1/speech-to-text/realtime?token=${token}&model_id=scribe_v2_realtime`);
+    state.scribeSocket = ws;
+
+    ws.onopen = () => {
+      console.log('Scribe connected');
+      // Send audio config
+      ws.send(JSON.stringify({
+        message_type: 'config',
+        config: {
+          model_id: 'scribe_v2_realtime',
+          encoding: 'pcm_16000',
+          language: 'en',
+        }
+      }));
+      startAudioPump();
+    };
+
+    ws.onmessage = async (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        
+        // Handle both partial and committed transcripts
+        if ((msg.message_type === 'partial_transcript' || msg.message_type === 'committed_transcript') && msg.text?.trim()) {
+          const line = msg.text.trim();
+          
+          if (msg.message_type === 'partial_transcript') {
+            // Update UI only for partials
+            updateTranscriptPreview(line, true);
+          } else {
+            // Committed transcript: finalize in UI and save to server
+            state.transcriptLines.push(line);
+            updateTranscriptPreview(line, false);
+            statLines.textContent = state.transcriptLines.length;
+
+            await fetch('/append', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ line }),
+            }).catch(() => {});
+          }
+        }
+      } catch (e) { console.warn('Scribe msg parse error:', e); }
+    };
+
+    ws.onerror = (e) => { console.error('Scribe error:', e); showToast('⚠️ Scribe connection error'); };
+    ws.onclose = () => console.log('Scribe closed');
+  } catch (err) {
+    console.error('Failed to start Scribe:', err);
+    showToast('⚠️ Transcription failed to start');
+  }
+}
+
+// ─── Audio pump to Scribe WebSocket ──────────────────────────────────────────
+function startAudioPump() {
+  if (!state.mediaStream || !state.scribeSocket) return;
+
+  const ctx = new AudioContext({ sampleRate: 16000 });
+  state.audioContext = ctx;
+  const source = ctx.createMediaStreamSource(state.mediaStream);
+  const processor = ctx.createScriptProcessor(4096, 1, 1);
+
+  source.connect(processor);
+  processor.connect(ctx.destination);
+
+  processor.onaudioprocess = (e) => {
+    if (state.scribeSocket?.readyState !== WebSocket.OPEN) return;
+    const float32 = e.inputBuffer.getChannelData(0);
+    // Convert to PCM16
+    const int16 = new Int16Array(float32.length);
+    for (let i = 0; i < float32.length; i++) {
+      int16[i] = Math.max(-32768, Math.min(32767, Math.round(float32[i] * 32767)));
+    }
+    state.scribeSocket.send(int16.buffer);
+  };
+}
+
+// ─── Transcript preview ───────────────────────────────────────────────────────
+function updateTranscriptPreview(line, isPartial = false) {
+  transcriptPreview.classList.remove('transcript-empty');
+  
+  // Get last 2 committed lines
+  let recent = state.transcriptLines.slice(-2);
+  
+  if (isPartial) {
+    // Show last 2 committed + the current partial
+    const display = [...recent, line].join(' … ');
+    transcriptPreview.textContent = display;
+    transcriptPreview.style.opacity = '0.7';
+  } else {
+    // Show last 3 committed lines
+    const display = state.transcriptLines.slice(-3).join(' … ');
+    transcriptPreview.textContent = display;
+    transcriptPreview.style.opacity = '1';
+  }
+}
+
+// ─── Video recording (MediaRecorder → chunked upload) ─────────────────────────
+function startVideoRecorder() {
+  if (!state.mediaStream) return;
+
+  const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')
+    ? 'video/webm;codecs=vp9,opus'
+    : MediaRecorder.isTypeSupported('video/webm')
+    ? 'video/webm'
+    : 'video/mp4';
+
+  const recorder = new MediaRecorder(state.mediaStream, {
+    mimeType,
+    videoBitsPerSecond: 2_000_000, // 2Mbps — good quality, reasonable size
+    audioBitsPerSecond: 128_000,
+  });
+
+  state.mediaRecorder = recorder;
+
+  recorder.ondataavailable = async (e) => {
+    if (e.data && e.data.size > 0 && state.recording) {
+      const form = new FormData();
+      form.append('chunk', e.data, 'chunk.webm');
+      try {
+        const res = await fetch('/video/chunk', { method: 'POST', body: form });
+        const json = await res.json();
+        state.videoChunks = json.chunks ?? state.videoChunks + 1;
+        statChunks.textContent = state.videoChunks;
+      } catch (err) {
+        console.warn('Chunk upload failed:', err);
+      }
+    }
+  };
+
+  // Emit chunks every 5 seconds
+  recorder.start(5000);
+}
+
+// ─── START ────────────────────────────────────────────────────────────────────
+async function startRecording() {
+  if (!state.mediaStream) {
+    showToast('⚠️ Camera not ready yet');
+    return;
+  }
+
+  // Tell server to start session
+  const res = await fetch('/session/start', { method: 'POST' });
+  const data = await res.json();
+  state.sessionId = data.sessionId;
+
+  state.recording = true;
+  state.startTime = Date.now();
+  state.transcriptLines = [];
+  state.videoChunks = 0;
+
+  // UI
+  btnMain.className = 'btn-main btn-stop';
+  btnMain.textContent = '■ Stop & Analyze';
+  statusPill.className = 'status-pill recording';
+  statusText.textContent = 'Recording';
+  recBadge.classList.add('visible');
+  timerBadge.classList.add('visible');
+  transcriptPreview.textContent = '';
+  transcriptPreview.classList.add('transcript-empty');
+  transcriptPreview.textContent = 'Listening…';
+
+  // Timer
+  state.timerInterval = setInterval(() => {
+    timerBadge.textContent = formatTime(Date.now() - state.startTime);
+    statDur.textContent = Math.round((Date.now() - state.startTime) / 1000) + 's';
+  }, 1000);
+
+  // Start components
+  startVideoRecorder();
+  await startScribe();
+
+  showToast('🔴 Recording started');
+}
+
+// ─── STOP ─────────────────────────────────────────────────────────────────────
+async function stopRecording() {
+  state.recording = false;
+
+  // Stop timer
+  clearInterval(state.timerInterval);
+
+  // Stop MediaRecorder (flush final chunk)
+  if (state.mediaRecorder && state.mediaRecorder.state !== 'inactive') {
+    await new Promise(resolve => {
+      state.mediaRecorder.onstop = resolve;
+      state.mediaRecorder.stop();
+    });
+  }
+
+  // Close Scribe
+  if (state.scribeSocket) {
+    state.scribeSocket.close();
+    state.scribeSocket = null;
+  }
+
+  // Close audio context
+  if (state.audioContext) {
+    await state.audioContext.close().catch(() => {});
+    state.audioContext = null;
+  }
+
+  // UI → loading
+  recBadge.classList.remove('visible');
+  timerBadge.classList.remove('visible');
+  statusPill.className = 'status-pill';
+  statusText.textContent = 'Processing…';
+  btnMain.disabled = true;
+  loadingTitle.textContent = 'Analyzing with AI…';
+  loadingSub.textContent = 'Saving video, running Gemini on transcript';
+  loadingOverlay.classList.add('visible');
+
+  try {
+    // Give MediaRecorder a moment to flush uploads
+    await new Promise(r => setTimeout(r, 1500));
+
+    const res = await fetch('/session/stop', { method: 'POST' });
+    const result = await res.json();
+
+    loadingOverlay.classList.remove('visible');
+
+    if (result.patientChart) {
+      showToast('✅ Analysis complete — check the dashboard!', 5000);
+    } else {
+      showToast('⚠️ Saved, but AI analysis failed: ' + (result.analysisError ?? 'unknown'), 6000);
+    }
+
+    // Redirect to dashboard after a moment
+    setTimeout(() => {
+      window.location.href = '/dashboard.html';
+    }, 2000);
+
+  } catch (err) {
+    loadingOverlay.classList.remove('visible');
+    showToast('⚠️ Error stopping session: ' + err.message);
+  }
+
+  // Reset UI
+  btnMain.className = 'btn-main btn-start';
+  btnMain.textContent = '▶ Start Recording';
+  btnMain.disabled = false;
+  statusPill.className = 'status-pill ready';
+  statusText.textContent = 'Ready';
+}
+
+// ─── Main button ──────────────────────────────────────────────────────────────
+btnMain.addEventListener('click', async () => {
+  if (state.recording) {
+    await stopRecording();
+  } else {
+    await startRecording();
+  }
+});
+
+// ─── Settings (placeholder) ───────────────────────────────────────────────────
+document.getElementById('btn-settings').addEventListener('click', () => {
+  showToast('⚙️ Settings coming soon');
+});
+
+// ─── Keep screen awake during recording ───────────────────────────────────────
+let wakeLock = null;
+async function requestWakeLock() {
+  if ('wakeLock' in navigator) {
+    try {
+      wakeLock = await navigator.wakeLock.request('screen');
+    } catch (e) { /* ignore */ }
+  }
+}
+requestWakeLock();
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+async function init() {
+  await initCamera();
+  statusPill.className = 'status-pill ready';
+  statusText.textContent = 'Ready';
+}
+
+init();
+</script>
+</body>
+</html>

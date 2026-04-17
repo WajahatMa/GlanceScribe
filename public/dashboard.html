@@ -1,0 +1,1230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GlanceScribe — Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f3f2f7;
+    --surface: #ffffff;
+    --surface2: #eeedf4;
+    --border: rgba(0,0,0,0.06);
+    --border2: rgba(0,0,0,0.1);
+    --text: #17162b;
+    --muted: #6e6d85;
+    --accent: #5046e5;
+    --accent-light: #ece9ff;
+    --accent2: #7c3aed;
+    --red: #dc2626;
+    --red-light: #fff0f0;
+    --green: #059669;
+    --green-light: #ecfdf5;
+    --amber: #d97706;
+    --amber-light: #fffbeb;
+    --teal: #0891b2;
+    --teal-light: #ecfeff;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.04), 0 1px 4px rgba(0,0,0,0.06);
+    --shadow-md: 0 4px 16px rgba(0,0,0,0.07);
+    --radius: 14px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+
+  /* ─── Header ─────────────────────────────────────────────────────────────── */
+  .header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border2);
+    padding: 0 28px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .logo { display: flex; align-items: center; gap: 10px; }
+
+  .logo-icon {
+    width: 34px; height: 34px;
+    background: var(--accent);
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 17px; color: white;
+  }
+
+  .logo-text { font-size: 17px; font-weight: 700; letter-spacing: -0.5px; }
+  .logo-text span { color: var(--accent); }
+  .logo-sub { font-weight: 400; color: var(--muted); font-size: 13px; margin-left: 4px; }
+
+  .header-right { display: flex; align-items: center; gap: 10px; }
+
+  .session-badge {
+    font-size: 11px; color: var(--muted); background: var(--surface2);
+    border: 1px solid var(--border2); padding: 3px 10px; border-radius: 16px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .status-indicator { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; }
+
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+  .status-dot.recording { background: var(--red); animation: pulse 1s ease-in-out infinite; }
+  .status-dot.idle { background: #ccc; }
+
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* ─── Layout ─────────────────────────────────────────────────────────────── */
+  .layout {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 18px;
+    padding: 20px 28px;
+    min-height: calc(100vh - 56px);
+    max-width: 1440px;
+    margin: 0 auto;
+  }
+
+  .sidebar { display: flex; flex-direction: column; gap: 14px; }
+
+  /* ─── Card ───────────────────────────────────────────────────────────────── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+  }
+
+  .card-header {
+    padding: 12px 16px 10px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  .card-title {
+    font-size: 11px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.8px;
+  }
+
+  .card-body { padding: 14px 16px; }
+
+  /* ─── Video ─────────────────────────────────────────────────────────────── */
+  .video-container {
+    background: #0a0a12;
+    aspect-ratio: 16/9;
+    position: relative; overflow: hidden;
+  }
+
+  .video-placeholder {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 6px; color: #555;
+  }
+
+  .video-placeholder-icon { font-size: 32px; opacity: 0.4; }
+  .video-placeholder p { font-size: 12px; }
+
+  /* ─── Transcript ─────────────────────────────────────────────────────────── */
+  .transcript-box {
+    font-size: 12.5px; line-height: 1.6; color: var(--text);
+    max-height: 200px; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 5px;
+  }
+
+  .transcript-box::-webkit-scrollbar { width: 3px; }
+  .transcript-box::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+  .transcript-line {
+    padding: 5px 9px; border-radius: 7px; background: var(--surface2);
+    border-left: 3px solid var(--border2); animation: fadeIn 0.3s ease;
+  }
+
+  .transcript-line.new { border-left-color: var(--accent); }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+
+  .transcript-empty-msg { color: var(--muted); font-style: italic; font-size: 12px; }
+
+  /* ─── Main panel ──────────────────────────────────────────────────────────── */
+  .main-panel { display: flex; flex-direction: column; gap: 14px; }
+
+  /* ─── Tabs ────────────────────────────────────────────────────────────────── */
+  .tabs {
+    display: flex; gap: 0; border-bottom: 1px solid var(--border2); padding: 0 16px;
+  }
+
+  .tab {
+    padding: 11px 14px; font-size: 12.5px; font-weight: 500; color: var(--muted);
+    cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px;
+    transition: all 0.15s; user-select: none;
+  }
+
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+
+  .tab-panel { display: none; padding: 18px 16px; }
+  .tab-panel.active { display: block; }
+
+  /* ─── Chart styles ────────────────────────────────────────────────────────── */
+  .chart-empty {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 10px; padding: 50px 20px; color: var(--muted); text-align: center;
+  }
+
+  .chart-empty-icon { font-size: 44px; opacity: 0.35; }
+  .chart-empty h3 { font-size: 16px; font-weight: 600; color: var(--text); }
+  .chart-empty p { font-size: 13px; max-width: 320px; line-height: 1.5; }
+
+  .participant-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+
+  .participant-card { border-radius: 10px; padding: 12px 14px; border: 1px solid var(--border2); }
+  .participant-card.doctor { background: linear-gradient(135deg, #ede9ff, #f5f3ff); border-color: #c4b5fd; }
+  .participant-card.patient { background: linear-gradient(135deg, #ecfeff, #f0fdf9); border-color: #99f6e4; }
+
+  .participant-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 3px; }
+  .doctor .participant-label { color: var(--accent2); }
+  .patient .participant-label { color: var(--teal); }
+
+  .participant-name { font-size: 14px; font-weight: 600; }
+  .participant-clue { font-size: 11px; color: var(--muted); margin-top: 3px; line-height: 1.4; }
+
+  .chart-section { margin-bottom: 18px; }
+
+  .chart-section-title {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.7px; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 8px; padding-bottom: 5px; border-bottom: 1px solid var(--border);
+  }
+
+  .chief-complaint {
+    background: var(--accent-light); border: 1px solid #c4b5fd; border-radius: 10px;
+    padding: 12px 14px; font-size: 14px; font-weight: 500; color: var(--accent2); line-height: 1.4;
+  }
+
+  .symptom-grid { display: flex; flex-wrap: wrap; gap: 7px; }
+
+  .symptom-pill {
+    display: inline-flex; flex-direction: column; background: var(--surface2);
+    border: 1px solid var(--border2); border-radius: 8px; padding: 6px 10px; gap: 2px;
+  }
+
+  .symptom-name { font-size: 12.5px; font-weight: 600; }
+  .symptom-meta { font-size: 10.5px; color: var(--muted); }
+
+  .severity-badge {
+    display: inline-block; font-size: 10px; font-weight: 600;
+    padding: 1px 6px; border-radius: 4px; margin-left: 4px;
+  }
+
+  .severity-mild { background: var(--green-light); color: var(--green); }
+  .severity-moderate { background: var(--amber-light); color: var(--amber); }
+  .severity-severe { background: var(--red-light); color: var(--red); }
+  .severity-not-specified { background: var(--surface2); color: var(--muted); }
+
+  .body-parts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+
+  .body-part-card {
+    background: var(--teal-light); border: 1px solid #a5f3fc; border-radius: 10px; padding: 10px 12px;
+  }
+
+  .body-part-name { font-size: 13px; font-weight: 600; color: var(--teal); margin-bottom: 3px; }
+  .body-part-finding { font-size: 11.5px; color: var(--muted); line-height: 1.4; }
+  .body-part-by { font-size: 10px; margin-top: 4px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  /* Exchange / conversation */
+  .exchange-list { display: flex; flex-direction: column; gap: 7px; }
+
+  .exchange {
+    display: flex; gap: 9px; align-items: flex-start;
+    padding: 9px 11px; border-radius: 8px; border: 1px solid var(--border);
+  }
+
+  .exchange.doctor { background: #f5f3ff; border-color: #e9d5ff; }
+  .exchange.patient { background: var(--surface2); border-color: var(--border2); }
+
+  .exchange-avatar {
+    width: 26px; height: 26px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; flex-shrink: 0;
+  }
+
+  .exchange.doctor .exchange-avatar { background: #ddd6fe; color: var(--accent2); }
+  .exchange.patient .exchange-avatar { background: #ccfbf1; color: var(--teal); }
+
+  .exchange-content { flex: 1; min-width: 0; }
+  .exchange-speaker { font-size: 10px; font-weight: 700; letter-spacing: 0.7px; text-transform: uppercase; margin-bottom: 2px; }
+  .exchange.doctor .exchange-speaker { color: var(--accent2); }
+  .exchange.patient .exchange-speaker { color: var(--teal); }
+  .exchange-text { font-size: 12.5px; line-height: 1.5; }
+
+  /* Plan */
+  .plan-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  .plan-item {
+    background: var(--surface2); border: 1px solid var(--border2);
+    border-radius: 10px; padding: 10px 12px;
+  }
+
+  .plan-item-label {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.7px; color: var(--muted); margin-bottom: 5px;
+  }
+
+  .plan-item-content { font-size: 12.5px; line-height: 1.5; }
+
+  .pill-list { display: flex; flex-wrap: wrap; gap: 5px; }
+
+  .pill {
+    background: var(--surface); border: 1px solid var(--border2);
+    border-radius: 6px; padding: 2px 8px; font-size: 11.5px;
+  }
+
+  /* Flags */
+  .flags-grid { display: flex; flex-direction: column; gap: 7px; }
+
+  .flag-item {
+    display: flex; align-items: flex-start; gap: 7px; font-size: 12.5px;
+    padding: 7px 10px; border-radius: 8px;
+  }
+
+  .flag-urgent { background: var(--red-light); color: var(--red); }
+  .flag-followup { background: var(--amber-light); color: var(--amber); }
+  .flag-unclear { background: var(--surface2); color: var(--muted); }
+  .flag-icon { font-size: 13px; flex-shrink: 0; }
+
+  /* 3D Body tab */
+  #body-3d-container {
+    width: 100%;
+    height: 520px;
+    border-radius: 12px;
+    overflow: hidden;
+    background: linear-gradient(180deg, #0f0e1a 0%, #1a1830 100%);
+    position: relative;
+    cursor: grab;
+  }
+
+  #body-3d-container:active { cursor: grabbing; }
+
+  #body-3d-container canvas { display: block; width: 100% !important; height: 100% !important; }
+
+  .body3d-controls {
+    position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 6px; z-index: 10;
+  }
+
+  .body3d-btn {
+    background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15);
+    color: #fff; padding: 5px 12px; border-radius: 8px; font-size: 11px;
+    cursor: pointer; backdrop-filter: blur(8px); font-family: inherit;
+    transition: background 0.15s;
+  }
+
+  .body3d-btn:hover { background: rgba(255,255,255,0.2); }
+  .body3d-btn.active { background: var(--accent); border-color: var(--accent); }
+
+  .body3d-legend {
+    position: absolute; top: 12px; right: 12px; z-index: 10;
+    background: rgba(0,0,0,0.55); border-radius: 10px; padding: 10px 12px;
+    backdrop-filter: blur(8px); color: #fff; font-size: 11px;
+    max-height: 300px; overflow-y: auto; min-width: 160px;
+  }
+
+  .body3d-legend-title {
+    font-weight: 700; font-size: 10px; text-transform: uppercase;
+    letter-spacing: 0.8px; margin-bottom: 6px; color: rgba(255,255,255,0.6);
+  }
+
+  .body3d-legend-item {
+    display: flex; align-items: center; gap: 7px; padding: 3px 0;
+  }
+
+  .body3d-legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  .body3d-instructions {
+    position: absolute; bottom: 12px; right: 12px; z-index: 10;
+    color: rgba(255,255,255,0.35); font-size: 10px; text-align: right;
+  }
+
+  /* JSON view */
+  #json-view {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px; line-height: 1.6; white-space: pre-wrap;
+    background: #0d1117; color: #e6edf3; border-radius: 8px;
+    padding: 14px; overflow: auto; max-height: 500px;
+  }
+
+  .notes-box {
+    background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px;
+    padding: 10px 12px; font-size: 12.5px; color: #92400e; line-height: 1.5;
+  }
+
+  .quality-badge {
+    display: inline-block; font-size: 10px; font-weight: 600;
+    padding: 2px 7px; border-radius: 5px; text-transform: capitalize;
+  }
+
+  .quality-good { background: var(--green-light); color: var(--green); }
+  .quality-fair { background: var(--amber-light); color: var(--amber); }
+  .quality-poor { background: var(--red-light); color: var(--red); }
+
+  /* Actions */
+  .actions-bar {
+    display: flex; gap: 8px; padding: 12px 16px;
+    border-top: 1px solid var(--border); background: var(--surface2);
+  }
+
+  .btn {
+    height: 34px; padding: 0 14px; border-radius: 8px;
+    border: 1px solid var(--border2); background: var(--surface);
+    color: var(--text); font-size: 12px; font-weight: 500;
+    cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
+    transition: all 0.15s; font-family: inherit;
+  }
+
+  .btn:hover { background: var(--surface2); }
+  .btn:active { transform: scale(0.98); }
+  .btn-primary { background: var(--accent); color: white; border-color: var(--accent); }
+  .btn-primary:hover { background: var(--accent2); border-color: var(--accent2); }
+
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    .plan-grid { grid-template-columns: 1fr; }
+    .participant-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="header">
+  <div class="logo">
+    <div class="logo-icon">👓</div>
+    <div class="logo-text">Glance<span>Scribe</span><span class="logo-sub">Dashboard</span></div>
+  </div>
+  <div class="header-right">
+    <div class="session-badge" id="session-badge">No session</div>
+    <div class="status-indicator">
+      <div class="status-dot idle" id="status-dot"></div>
+      <span id="status-label">Idle</span>
+    </div>
+    <a href="/" style="text-decoration:none;">
+      <button class="btn btn-primary" style="height:30px;font-size:11px;">📱 iPhone View</button>
+    </a>
+  </div>
+</header>
+
+<!-- Layout -->
+<div class="layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">📹 Live Preview</span>
+        <span style="font-size:10px;color:var(--muted)" id="video-status">Waiting…</span>
+      </div>
+      <div class="video-container">
+        <div class="video-placeholder" id="video-placeholder">
+          <div class="video-placeholder-icon">📱</div>
+          <p>Start recording on iPhone</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">📊 Session</span>
+        <span class="quality-badge quality-good" id="transcript-quality" style="display:none">good</span>
+      </div>
+      <div class="card-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div>
+            <div style="font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;font-family:'JetBrains Mono',monospace;" id="stat-duration">0s</div>
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px">Duration</div>
+          </div>
+          <div>
+            <div style="font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;font-family:'JetBrains Mono',monospace;" id="stat-lines">0</div>
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px">Lines</div>
+          </div>
+          <div>
+            <div style="font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;font-family:'JetBrains Mono',monospace;" id="stat-chunks">0</div>
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px">Video Chunks</div>
+          </div>
+          <div>
+            <div style="font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;font-family:'JetBrains Mono',monospace;" id="stat-body-parts">0</div>
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px">Body Parts</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="flex:1;min-height:0;display:flex;flex-direction:column;">
+      <div class="card-header">
+        <span class="card-title">📝 Live Transcript</span>
+        <span style="font-size:10px;color:var(--muted);" id="transcript-count">0 lines</span>
+      </div>
+      <div class="card-body" style="flex:1;overflow:hidden;">
+        <div class="transcript-box" id="transcript-box">
+          <div class="transcript-empty-msg">Transcript streams here live…</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main panel -->
+  <main class="main-panel">
+    <div class="card" style="flex:1;">
+      <div class="card-header" style="padding-bottom:0;border-bottom:none;">
+        <span class="card-title">🏥 Patient Chart</span>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <span id="chart-session-id" style="font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace;"></span>
+          <button class="btn" id="btn-refresh" style="height:26px;font-size:11px;">↻ Refresh</button>
+          <button class="btn" id="btn-export" style="height:26px;font-size:11px;">⬇ Export</button>
+        </div>
+      </div>
+
+      <div class="tabs">
+        <div class="tab active" data-tab="chart">📋 Chart</div>
+        <div class="tab" data-tab="conversation">💬 Conversation</div>
+        <div class="tab" data-tab="body">🫀 3D Body</div>
+        <div class="tab" data-tab="plan">💊 Plan</div>
+        <div class="tab" data-tab="flags">⚑ Flags</div>
+        <div class="tab" data-tab="json">{ } JSON</div>
+      </div>
+
+      <!-- Chart tab -->
+      <div class="tab-panel active" id="tab-chart">
+        <div id="chart-empty" class="chart-empty">
+          <div class="chart-empty-icon">🏥</div>
+          <h3>No chart yet</h3>
+          <p>Start a recording session on your iPhone. AI generates a structured chart when you stop.</p>
+        </div>
+        <div id="chart-content" style="display:none;">
+          <div class="participant-row" id="participants-row"></div>
+          <div class="chart-section">
+            <div class="chart-section-title">Chief Complaint</div>
+            <div class="chief-complaint" id="chief-complaint"></div>
+          </div>
+          <div class="chart-section">
+            <div class="chart-section-title">History of Present Illness</div>
+            <p style="font-size:13px;line-height:1.6;" id="hpi"></p>
+          </div>
+          <div class="chart-section">
+            <div class="chart-section-title">Reported Symptoms</div>
+            <div class="symptom-grid" id="symptoms-grid"></div>
+          </div>
+          <div class="chart-section">
+            <div class="chart-section-title">Physical Examination</div>
+            <p style="font-size:13px;line-height:1.6;" id="exam-findings"></p>
+          </div>
+          <div class="chart-section">
+            <div class="chart-section-title">Doctor's Assessment</div>
+            <p style="font-size:13px;line-height:1.6;font-weight:500;" id="doctor-assessment"></p>
+          </div>
+          <div id="notes-section" class="chart-section" style="display:none;">
+            <div class="chart-section-title">Additional Notes</div>
+            <div class="notes-box" id="chart-notes"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Conversation tab -->
+      <div class="tab-panel" id="tab-conversation">
+        <div class="exchange-list" id="exchange-list">
+          <p class="transcript-empty-msg">No conversation recorded yet.</p>
+        </div>
+      </div>
+
+      <!-- 3D Body tab -->
+      <div class="tab-panel" id="tab-body">
+        <div id="body-parts-empty" style="color:var(--muted);font-size:13px;font-style:italic;">No body parts identified yet.</div>
+        <div class="body-parts-grid" id="body-parts-grid" style="display:none;margin-bottom:14px;"></div>
+        <div id="body-3d-wrapper" style="display:none;">
+          <div id="body-3d-container">
+            <div class="body3d-legend" id="body3d-legend" style="display:none;">
+              <div class="body3d-legend-title">Affected Areas</div>
+              <div id="body3d-legend-items"></div>
+            </div>
+            <div class="body3d-instructions">
+              Drag to rotate · Scroll to zoom
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Plan tab -->
+      <div class="tab-panel" id="tab-plan">
+        <div id="plan-empty" style="color:var(--muted);font-size:13px;font-style:italic;">No treatment plan recorded yet.</div>
+        <div id="plan-content" style="display:none;">
+          <div class="plan-grid" id="plan-grid"></div>
+        </div>
+      </div>
+
+      <!-- Flags tab -->
+      <div class="tab-panel" id="tab-flags">
+        <div id="flags-empty" style="color:var(--muted);font-size:13px;font-style:italic;">No flags identified.</div>
+        <div class="flags-grid" id="flags-grid" style="display:none;"></div>
+      </div>
+
+      <!-- JSON tab -->
+      <div class="tab-panel" id="tab-json">
+        <pre id="json-view">No data yet.</pre>
+      </div>
+
+      <div class="actions-bar">
+        <span style="font-size:11px;color:var(--muted);flex:1;" id="last-updated"></span>
+        <button class="btn" id="btn-print" onclick="window.print()">🖨 Print</button>
+        <button class="btn btn-primary" onclick="window.location.href='/'">📱 New Session</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Three.js for 3D body -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<script>
+// ─── State ────────────────────────────────────────────────────────────────────
+let currentChart = null;
+let pollInterval = null;
+let transcriptLines = [];
+let sessionActive = false;
+let bodyScene = null;
+
+// ─── Tabs ─────────────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    const name = tab.dataset.tab;
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-' + name).classList.add('active');
+    // Resize 3D scene if switching to body tab
+    if (name === 'body' && bodyScene) bodyScene.resize();
+  });
+});
+
+// ─── Status polling ───────────────────────────────────────────────────────────
+async function pollStatus() {
+  try {
+    const res = await fetch('/session/status');
+    const data = await res.json();
+
+    const dot = document.getElementById('status-dot');
+    const label = document.getElementById('status-label');
+    const badge = document.getElementById('session-badge');
+
+    if (data.active) {
+      sessionActive = true;
+      dot.className = 'status-dot recording';
+      label.textContent = 'Recording';
+      badge.textContent = data.sessionId ?? 'Active';
+      document.getElementById('stat-duration').textContent = data.duration + 's';
+      document.getElementById('stat-lines').textContent = data.transcriptLines;
+      document.getElementById('stat-chunks').textContent = data.videoChunks;
+    } else if (sessionActive) {
+      sessionActive = false;
+      dot.className = 'status-dot';
+      label.textContent = 'Processing…';
+      setTimeout(() => loadLatestChart(), 3000);
+    } else {
+      dot.className = 'status-dot idle';
+      label.textContent = 'Idle';
+    }
+  } catch (e) {
+    console.warn('Poll error:', e);
+  }
+}
+
+// ─── SSE for live transcript ──────────────────────────────────────────────────
+function initSSE() {
+  const sse = new EventSource('/transcript/live');
+  sse.onmessage = (e) => {
+    try {
+      const msg = JSON.parse(e.data);
+      if (msg.type === 'transcript_line') {
+        addTranscriptLine(msg.line);
+      } else if (msg.type === 'session_start') {
+        document.getElementById('status-dot').className = 'status-dot recording';
+        document.getElementById('status-label').textContent = 'Recording';
+        document.getElementById('session-badge').textContent = msg.sessionId;
+        sessionActive = true;
+      } else if (msg.type === 'chart_ready') {
+        renderChart(msg.chart);
+        document.getElementById('status-dot').className = 'status-dot';
+        document.getElementById('status-label').textContent = 'Ready';
+      } else if (msg.type === 'video_chunk') {
+        document.getElementById('stat-chunks').textContent = msg.chunks;
+      }
+    } catch {}
+  };
+  sse.onerror = () => {
+    sse.close();
+    setTimeout(initSSE, 3000);
+  };
+}
+
+function addTranscriptLine(line) {
+  const box = document.getElementById('transcript-box');
+  const emptyMsg = box.querySelector('.transcript-empty-msg');
+  if (emptyMsg) emptyMsg.remove();
+
+  const div = document.createElement('div');
+  div.className = 'transcript-line new';
+  div.textContent = line;
+  box.appendChild(div);
+  setTimeout(() => div.classList.remove('new'), 1000);
+  box.scrollTop = box.scrollHeight;
+  transcriptLines.push(line);
+  document.getElementById('transcript-count').textContent = transcriptLines.length + ' lines';
+  document.getElementById('stat-lines').textContent = transcriptLines.length;
+}
+
+// ─── Render chart ─────────────────────────────────────────────────────────────
+function renderChart(chart) {
+  currentChart = chart;
+  document.getElementById('chart-empty').style.display = 'none';
+  document.getElementById('chart-content').style.display = 'block';
+  document.getElementById('chart-session-id').textContent = chart.sessionId ?? '';
+
+  const qBadge = document.getElementById('transcript-quality');
+  if (chart.transcriptQuality) {
+    qBadge.textContent = chart.transcriptQuality;
+    qBadge.className = 'quality-badge quality-' + chart.transcriptQuality;
+    qBadge.style.display = 'inline-block';
+  }
+
+  // Participants
+  const pRow = document.getElementById('participants-row');
+  pRow.innerHTML = '';
+  if (chart.participants) {
+    const { doctor, patient } = chart.participants;
+    pRow.innerHTML = `
+      <div class="participant-card doctor">
+        <div class="participant-label">👨‍⚕️ Doctor</div>
+        <div class="participant-name">${doctor?.identified ? 'Identified' : 'Not confirmed'}</div>
+        <div class="participant-clue">${escHtml(doctor?.identifyingClues ?? '—')}</div>
+      </div>
+      <div class="participant-card patient">
+        <div class="participant-label">🧑 Patient</div>
+        <div class="participant-name">${escHtml(patient?.name ?? 'Unidentified')} ${patient?.age ? '· ' + escHtml(patient.age) : ''}</div>
+        <div class="participant-clue">${escHtml(patient?.identifyingClues ?? '—')}</div>
+      </div>
+    `;
+  }
+
+  document.getElementById('chief-complaint').textContent = chart.chiefComplaint ?? '—';
+  document.getElementById('hpi').textContent = chart.historyOfPresentIllness ?? '—';
+  document.getElementById('exam-findings').textContent = chart.physicalExamFindings ?? '—';
+  document.getElementById('doctor-assessment').textContent = chart.doctorAssessment ?? '—';
+
+  if (chart.notes) {
+    document.getElementById('notes-section').style.display = 'block';
+    document.getElementById('chart-notes').textContent = chart.notes;
+  }
+
+  // Symptoms
+  const symGrid = document.getElementById('symptoms-grid');
+  symGrid.innerHTML = '';
+  if (chart.symptomsReported?.length) {
+    chart.symptomsReported.forEach(s => {
+      const severityClass = 'severity-' + (s.severity ?? 'not-specified').replace(/ /g, '-');
+      symGrid.innerHTML += `
+        <div class="symptom-pill">
+          <div class="symptom-name">${escHtml(s.symptom)}<span class="severity-badge ${severityClass}">${s.severity ?? 'n/a'}</span></div>
+          <div class="symptom-meta">${[s.duration, s.location].filter(Boolean).join(' · ') || '—'}</div>
+        </div>
+      `;
+    });
+  }
+
+  // Body parts
+  const bpGrid = document.getElementById('body-parts-grid');
+  const bpEmpty = document.getElementById('body-parts-empty');
+  bpGrid.innerHTML = '';
+  if (chart.bodyPartsExamined?.length) {
+    bpEmpty.style.display = 'none';
+    bpGrid.style.display = 'grid';
+    document.getElementById('stat-body-parts').textContent = chart.bodyPartsExamined.length;
+    chart.bodyPartsExamined.forEach(bp => {
+      bpGrid.innerHTML += `
+        <div class="body-part-card">
+          <div class="body-part-name">🫁 ${escHtml(bp.bodyPart)}</div>
+          <div class="body-part-finding">${escHtml(bp.findings ?? '—')}</div>
+          <div class="body-part-by">Mentioned by ${bp.mentionedBy ?? 'unknown'}</div>
+        </div>
+      `;
+    });
+    document.getElementById('body-3d-wrapper').style.display = 'block';
+    render3DBody(chart.bodyPartsExamined);
+  }
+
+  // Key exchanges
+  const exList = document.getElementById('exchange-list');
+  exList.innerHTML = '';
+  if (chart.keyExchanges?.length) {
+    chart.keyExchanges.forEach(ex => {
+      const role = (ex.speaker ?? '').toLowerCase();
+      const isDoc = role === 'doctor' || role === 'dr';
+      exList.innerHTML += `
+        <div class="exchange ${isDoc ? 'doctor' : 'patient'}">
+          <div class="exchange-avatar">${isDoc ? 'Dr' : 'Pt'}</div>
+          <div class="exchange-content">
+            <div class="exchange-speaker">${escHtml(ex.speaker ?? 'Unknown')}</div>
+            <div class="exchange-text">${escHtml(ex.statement ?? '')}</div>
+          </div>
+        </div>
+      `;
+    });
+  } else {
+    exList.innerHTML = '<p class="transcript-empty-msg">No key exchanges extracted.</p>';
+  }
+
+  // Plan
+  const plan = chart.planAndTreatment;
+  const planContent = document.getElementById('plan-content');
+  const planEmpty = document.getElementById('plan-empty');
+  const planGrid = document.getElementById('plan-grid');
+  planGrid.innerHTML = '';
+
+  if (plan && (plan.medications?.length || plan.followUp || plan.instructions?.length || plan.referrals?.length)) {
+    planEmpty.style.display = 'none';
+    planContent.style.display = 'block';
+    planGrid.innerHTML = `
+      <div class="plan-item">
+        <div class="plan-item-label">💊 Medications</div>
+        <div class="plan-item-content">
+          ${plan.medications?.length
+            ? '<div class="pill-list">' + plan.medications.map(m => `<span class="pill">${escHtml(m)}</span>`).join('') + '</div>'
+            : '<span style="color:var(--muted)">None prescribed</span>'}
+        </div>
+      </div>
+      <div class="plan-item">
+        <div class="plan-item-label">📅 Follow-Up</div>
+        <div class="plan-item-content">${escHtml(plan.followUp ?? '—')}</div>
+      </div>
+      <div class="plan-item" style="grid-column:1/-1">
+        <div class="plan-item-label">📋 Instructions</div>
+        <div class="plan-item-content">
+          ${plan.instructions?.length
+            ? '<ul style="padding-left:14px;list-style:disc;">' + plan.instructions.map(i => `<li style="font-size:12.5px;line-height:1.5;">${escHtml(i)}</li>`).join('') + '</ul>'
+            : '<span style="color:var(--muted)">No specific instructions</span>'}
+        </div>
+      </div>
+      ${plan.referrals?.length ? `
+      <div class="plan-item" style="grid-column:1/-1">
+        <div class="plan-item-label">🔗 Referrals</div>
+        <div class="plan-item-content pill-list">${plan.referrals.map(r => `<span class="pill">${escHtml(r)}</span>`).join('')}</div>
+      </div>` : ''}
+    `;
+  }
+
+  // Flags
+  const flags = chart.flags;
+  const flagsGrid = document.getElementById('flags-grid');
+  const flagsEmpty = document.getElementById('flags-empty');
+  flagsGrid.innerHTML = '';
+  let hasFlags = false;
+
+  if (flags?.urgentItems?.length) {
+    hasFlags = true;
+    flags.urgentItems.forEach(f => {
+      flagsGrid.innerHTML += `<div class="flag-item flag-urgent"><span class="flag-icon">🚨</span>${escHtml(f)}</div>`;
+    });
+  }
+  if (flags?.requiresFollowUp?.length) {
+    hasFlags = true;
+    flags.requiresFollowUp.forEach(f => {
+      flagsGrid.innerHTML += `<div class="flag-item flag-followup"><span class="flag-icon">⚠️</span>${escHtml(f)}</div>`;
+    });
+  }
+  if (flags?.unclearItems?.length) {
+    hasFlags = true;
+    flags.unclearItems.forEach(f => {
+      flagsGrid.innerHTML += `<div class="flag-item flag-unclear"><span class="flag-icon">❓</span>${escHtml(f)}</div>`;
+    });
+  }
+
+  if (hasFlags) { flagsEmpty.style.display = 'none'; flagsGrid.style.display = 'flex'; }
+
+  document.getElementById('json-view').textContent = JSON.stringify(chart, null, 2);
+  document.getElementById('last-updated').textContent = 'Generated: ' + new Date(chart.generatedAt ?? Date.now()).toLocaleString();
+}
+
+// ─── 3D INTERACTIVE BODY MODEL ───────────────────────────────────────────────
+function render3DBody(bodyParts) {
+  const container = document.getElementById('body-3d-container');
+
+  // Clear previous
+  while (container.querySelector('canvas')) {
+    container.querySelector('canvas').remove();
+  }
+
+  const width = container.clientWidth;
+  const height = container.clientHeight;
+
+  // Scene setup
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
+  camera.position.set(0, 0.2, 4.5);
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setSize(width, height);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setClearColor(0x000000, 0);
+  container.appendChild(renderer.domElement);
+
+  // Lights
+  const ambientLight = new THREE.AmbientLight(0x8888cc, 0.6);
+  scene.add(ambientLight);
+
+  const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
+  dirLight.position.set(3, 5, 4);
+  scene.add(dirLight);
+
+  const backLight = new THREE.DirectionalLight(0x6644ff, 0.3);
+  backLight.position.set(-2, 2, -3);
+  scene.add(backLight);
+
+  const rimLight = new THREE.DirectionalLight(0x00ccff, 0.2);
+  rimLight.position.set(0, -1, 3);
+  scene.add(rimLight);
+
+  // ─── Build anatomical body ─────────────────────────────────────────────────
+  const bodyGroup = new THREE.Group();
+
+  const baseMat = new THREE.MeshPhongMaterial({
+    color: 0xc4a882,
+    shininess: 30,
+    transparent: true,
+    opacity: 0.45,
+  });
+
+  // Body part geometry definitions with positions
+  const anatomy = {
+    'head':         { geo: () => new THREE.SphereGeometry(0.28, 24, 20), pos: [0, 2.4, 0] },
+    'face':         { geo: () => new THREE.SphereGeometry(0.28, 24, 20), pos: [0, 2.4, 0] },
+    'neck':         { geo: () => new THREE.CylinderGeometry(0.1, 0.12, 0.22, 12), pos: [0, 2.02, 0] },
+    'throat':       { geo: () => new THREE.CylinderGeometry(0.1, 0.12, 0.22, 12), pos: [0, 2.02, 0] },
+    'chest':        { geo: () => new THREE.CylinderGeometry(0.38, 0.35, 0.55, 16), pos: [0, 1.6, 0] },
+    'heart':        { geo: () => new THREE.SphereGeometry(0.12, 12, 12), pos: [-0.12, 1.65, 0.15] },
+    'lung':         { geo: () => new THREE.SphereGeometry(0.18, 12, 12), pos: [0.12, 1.6, 0] },
+    'lungs':        { geo: () => new THREE.SphereGeometry(0.18, 12, 12), pos: [0, 1.6, 0] },
+    'abdomen':      { geo: () => new THREE.CylinderGeometry(0.35, 0.32, 0.5, 16), pos: [0, 1.08, 0] },
+    'stomach':      { geo: () => new THREE.SphereGeometry(0.15, 12, 12), pos: [-0.08, 1.15, 0.1] },
+    'belly':        { geo: () => new THREE.CylinderGeometry(0.35, 0.32, 0.5, 16), pos: [0, 1.08, 0] },
+    'upper back':   { geo: () => new THREE.CylinderGeometry(0.35, 0.33, 0.5, 16), pos: [0, 1.6, -0.05] },
+    'lower back':   { geo: () => new THREE.CylinderGeometry(0.32, 0.3, 0.4, 16), pos: [0, 1.1, -0.05] },
+    'back':         { geo: () => new THREE.CylinderGeometry(0.35, 0.3, 0.7, 16), pos: [0, 1.35, -0.05] },
+    'spine':        { geo: () => new THREE.CylinderGeometry(0.05, 0.05, 1.0, 8), pos: [0, 1.4, -0.1] },
+    'hip':          { geo: () => new THREE.CylinderGeometry(0.32, 0.28, 0.25, 16), pos: [0, 0.72, 0] },
+    'pelvis':       { geo: () => new THREE.CylinderGeometry(0.32, 0.28, 0.25, 16), pos: [0, 0.72, 0] },
+
+    // Arms
+    'left shoulder':  { geo: () => new THREE.SphereGeometry(0.12, 12, 12), pos: [-0.48, 1.82, 0] },
+    'right shoulder': { geo: () => new THREE.SphereGeometry(0.12, 12, 12), pos: [0.48, 1.82, 0] },
+    'shoulder':       { geo: () => new THREE.SphereGeometry(0.12, 12, 12), pos: [0.48, 1.82, 0] },
+    'left upper arm': { geo: () => new THREE.CylinderGeometry(0.08, 0.07, 0.5, 10), pos: [-0.55, 1.5, 0] },
+    'right upper arm':{ geo: () => new THREE.CylinderGeometry(0.08, 0.07, 0.5, 10), pos: [0.55, 1.5, 0] },
+    'upper arm':      { geo: () => new THREE.CylinderGeometry(0.08, 0.07, 0.5, 10), pos: [0.55, 1.5, 0] },
+    'left arm':       { geo: () => new THREE.CylinderGeometry(0.07, 0.06, 0.8, 10), pos: [-0.58, 1.35, 0] },
+    'right arm':      { geo: () => new THREE.CylinderGeometry(0.07, 0.06, 0.8, 10), pos: [0.58, 1.35, 0] },
+    'arm':            { geo: () => new THREE.CylinderGeometry(0.07, 0.06, 0.8, 10), pos: [0.58, 1.35, 0] },
+    'left elbow':     { geo: () => new THREE.SphereGeometry(0.08, 10, 10), pos: [-0.58, 1.22, 0] },
+    'right elbow':    { geo: () => new THREE.SphereGeometry(0.08, 10, 10), pos: [0.58, 1.22, 0] },
+    'elbow':          { geo: () => new THREE.SphereGeometry(0.08, 10, 10), pos: [0.58, 1.22, 0] },
+    'left forearm':   { geo: () => new THREE.CylinderGeometry(0.06, 0.05, 0.45, 10), pos: [-0.6, 0.98, 0.05] },
+    'right forearm':  { geo: () => new THREE.CylinderGeometry(0.06, 0.05, 0.45, 10), pos: [0.6, 0.98, 0.05] },
+    'forearm':        { geo: () => new THREE.CylinderGeometry(0.06, 0.05, 0.45, 10), pos: [0.6, 0.98, 0.05] },
+    'left wrist':     { geo: () => new THREE.SphereGeometry(0.05, 8, 8), pos: [-0.62, 0.74, 0.08] },
+    'right wrist':    { geo: () => new THREE.SphereGeometry(0.05, 8, 8), pos: [0.62, 0.74, 0.08] },
+    'wrist':          { geo: () => new THREE.SphereGeometry(0.05, 8, 8), pos: [0.62, 0.74, 0.08] },
+    'left hand':      { geo: () => new THREE.SphereGeometry(0.07, 10, 10), pos: [-0.64, 0.62, 0.1] },
+    'right hand':     { geo: () => new THREE.SphereGeometry(0.07, 10, 10), pos: [0.64, 0.62, 0.1] },
+    'hand':           { geo: () => new THREE.SphereGeometry(0.07, 10, 10), pos: [0.64, 0.62, 0.1] },
+
+    // Legs
+    'left thigh':     { geo: () => new THREE.CylinderGeometry(0.12, 0.09, 0.6, 12), pos: [-0.18, 0.32, 0] },
+    'right thigh':    { geo: () => new THREE.CylinderGeometry(0.12, 0.09, 0.6, 12), pos: [0.18, 0.32, 0] },
+    'thigh':          { geo: () => new THREE.CylinderGeometry(0.12, 0.09, 0.6, 12), pos: [0.18, 0.32, 0] },
+    'left knee':      { geo: () => new THREE.SphereGeometry(0.1, 12, 12), pos: [-0.18, -0.02, 0.03] },
+    'right knee':     { geo: () => new THREE.SphereGeometry(0.1, 12, 12), pos: [0.18, -0.02, 0.03] },
+    'knee':           { geo: () => new THREE.SphereGeometry(0.1, 12, 12), pos: [0.18, -0.02, 0.03] },
+    'left leg':       { geo: () => new THREE.CylinderGeometry(0.09, 0.07, 0.9, 10), pos: [-0.18, 0.1, 0] },
+    'right leg':      { geo: () => new THREE.CylinderGeometry(0.09, 0.07, 0.9, 10), pos: [0.18, 0.1, 0] },
+    'leg':            { geo: () => new THREE.CylinderGeometry(0.09, 0.07, 0.9, 10), pos: [0.18, 0.1, 0] },
+    'left shin':      { geo: () => new THREE.CylinderGeometry(0.07, 0.06, 0.55, 10), pos: [-0.18, -0.38, 0] },
+    'right shin':     { geo: () => new THREE.CylinderGeometry(0.07, 0.06, 0.55, 10), pos: [0.18, -0.38, 0] },
+    'shin':           { geo: () => new THREE.CylinderGeometry(0.07, 0.06, 0.55, 10), pos: [0.18, -0.38, 0] },
+    'left ankle':     { geo: () => new THREE.SphereGeometry(0.06, 8, 8), pos: [-0.18, -0.68, 0] },
+    'right ankle':    { geo: () => new THREE.SphereGeometry(0.06, 8, 8), pos: [0.18, -0.68, 0] },
+    'ankle':          { geo: () => new THREE.SphereGeometry(0.06, 8, 8), pos: [0.18, -0.68, 0] },
+    'left foot':      { geo: () => new THREE.SphereGeometry(0.08, 10, 8), pos: [-0.18, -0.78, 0.06] },
+    'right foot':     { geo: () => new THREE.SphereGeometry(0.08, 10, 8), pos: [0.18, -0.78, 0.06] },
+    'foot':           { geo: () => new THREE.SphereGeometry(0.08, 10, 8), pos: [0.18, -0.78, 0.06] },
+    'feet':           { geo: () => new THREE.SphereGeometry(0.08, 10, 8), pos: [0, -0.78, 0.06] },
+
+    // Head detail
+    'ear':  { geo: () => new THREE.SphereGeometry(0.06, 8, 8), pos: [-0.28, 2.42, 0] },
+    'eye':  { geo: () => new THREE.SphereGeometry(0.05, 8, 8), pos: [-0.1, 2.48, 0.22] },
+    'nose': { geo: () => new THREE.SphereGeometry(0.04, 8, 8), pos: [0, 2.38, 0.26] },
+  };
+
+  // Build neutral body silhouette
+  const silhouetteParts = [
+    { name: 'head', geo: new THREE.SphereGeometry(0.27, 24, 20), pos: [0, 2.4, 0] },
+    { name: 'neck', geo: new THREE.CylinderGeometry(0.09, 0.11, 0.2, 12), pos: [0, 2.02, 0] },
+    { name: 'torso', geo: new THREE.CylinderGeometry(0.36, 0.33, 1.1, 16), pos: [0, 1.35, 0] },
+    { name: 'hip', geo: new THREE.CylinderGeometry(0.33, 0.26, 0.22, 16), pos: [0, 0.72, 0] },
+    // Left arm
+    { name: 'lShoulder', geo: new THREE.SphereGeometry(0.11, 10, 10), pos: [-0.47, 1.82, 0] },
+    { name: 'lUpperArm', geo: new THREE.CylinderGeometry(0.07, 0.06, 0.5, 10), pos: [-0.54, 1.5, 0] },
+    { name: 'lElbow', geo: new THREE.SphereGeometry(0.065, 8, 8), pos: [-0.57, 1.22, 0] },
+    { name: 'lForearm', geo: new THREE.CylinderGeometry(0.055, 0.045, 0.44, 10), pos: [-0.59, 0.98, 0.04] },
+    { name: 'lHand', geo: new THREE.SphereGeometry(0.065, 8, 8), pos: [-0.62, 0.64, 0.08] },
+    // Right arm
+    { name: 'rShoulder', geo: new THREE.SphereGeometry(0.11, 10, 10), pos: [0.47, 1.82, 0] },
+    { name: 'rUpperArm', geo: new THREE.CylinderGeometry(0.07, 0.06, 0.5, 10), pos: [0.54, 1.5, 0] },
+    { name: 'rElbow', geo: new THREE.SphereGeometry(0.065, 8, 8), pos: [0.57, 1.22, 0] },
+    { name: 'rForearm', geo: new THREE.CylinderGeometry(0.055, 0.045, 0.44, 10), pos: [0.59, 0.98, 0.04] },
+    { name: 'rHand', geo: new THREE.SphereGeometry(0.065, 8, 8), pos: [0.62, 0.64, 0.08] },
+    // Left leg
+    { name: 'lThigh', geo: new THREE.CylinderGeometry(0.11, 0.08, 0.58, 10), pos: [-0.17, 0.32, 0] },
+    { name: 'lKnee', geo: new THREE.SphereGeometry(0.085, 10, 10), pos: [-0.17, -0.01, 0.02] },
+    { name: 'lShin', geo: new THREE.CylinderGeometry(0.065, 0.055, 0.54, 10), pos: [-0.17, -0.37, 0] },
+    { name: 'lAnkle', geo: new THREE.SphereGeometry(0.055, 8, 8), pos: [-0.17, -0.67, 0] },
+    { name: 'lFoot', geo: new THREE.SphereGeometry(0.07, 8, 6), pos: [-0.17, -0.77, 0.05] },
+    // Right leg
+    { name: 'rThigh', geo: new THREE.CylinderGeometry(0.11, 0.08, 0.58, 10), pos: [0.17, 0.32, 0] },
+    { name: 'rKnee', geo: new THREE.SphereGeometry(0.085, 10, 10), pos: [0.17, -0.01, 0.02] },
+    { name: 'rShin', geo: new THREE.CylinderGeometry(0.065, 0.055, 0.54, 10), pos: [0.17, -0.37, 0] },
+    { name: 'rAnkle', geo: new THREE.SphereGeometry(0.055, 8, 8), pos: [0.17, -0.67, 0] },
+    { name: 'rFoot', geo: new THREE.SphereGeometry(0.07, 8, 6), pos: [0.17, -0.77, 0.05] },
+  ];
+
+  silhouetteParts.forEach(p => {
+    const mesh = new THREE.Mesh(p.geo, baseMat);
+    mesh.position.set(...p.pos);
+    bodyGroup.add(mesh);
+  });
+
+  // ─── Highlight affected parts ──────────────────────────────────────────────
+  const highlightColors = [0xff4d6d, 0xfbbf24, 0x6c63ff, 0x34d399, 0x0891b2, 0xe879f9, 0xfb923c];
+  const legendItems = document.getElementById('body3d-legend-items');
+  const legend = document.getElementById('body3d-legend');
+  legendItems.innerHTML = '';
+
+  bodyParts.forEach((bp, i) => {
+    const key = (bp.bodyPart ?? '').toLowerCase().trim();
+    const def = anatomy[key];
+    if (!def) return;
+
+    const color = highlightColors[i % highlightColors.length];
+    const hlMat = new THREE.MeshPhongMaterial({
+      color: color,
+      emissive: color,
+      emissiveIntensity: 0.35,
+      shininess: 60,
+      transparent: true,
+      opacity: 0.85,
+    });
+
+    const mesh = new THREE.Mesh(def.geo(), hlMat);
+    mesh.position.set(...def.pos);
+    mesh.userData = { bodyPart: bp.bodyPart, findings: bp.findings };
+    bodyGroup.add(mesh);
+
+    // Pulsing glow sphere
+    const glowMat = new THREE.MeshBasicMaterial({
+      color: color,
+      transparent: true,
+      opacity: 0.2,
+    });
+    const glowGeo = new THREE.SphereGeometry(0.18, 12, 12);
+    const glow = new THREE.Mesh(glowGeo, glowMat);
+    glow.position.set(...def.pos);
+    glow.userData.pulse = true;
+    glow.userData.baseOpacity = 0.2;
+    bodyGroup.add(glow);
+
+    // Legend
+    const colorHex = '#' + new THREE.Color(color).getHexString();
+    legendItems.innerHTML += `
+      <div class="body3d-legend-item">
+        <div class="body3d-legend-dot" style="background:${colorHex}"></div>
+        <span>${bp.bodyPart}</span>
+      </div>
+    `;
+  });
+
+  if (bodyParts.length > 0) legend.style.display = 'block';
+
+  scene.add(bodyGroup);
+
+  // ─── Mouse orbit controls (manual, no dependency) ──────────────────────────
+  let isDragging = false;
+  let prevMouse = { x: 0, y: 0 };
+  let rotation = { x: 0, y: 0 };
+  let targetRotation = { x: 0, y: 0 };
+  let cameraDistance = 4.5;
+
+  const canvas = renderer.domElement;
+
+  canvas.addEventListener('pointerdown', (e) => {
+    isDragging = true;
+    prevMouse = { x: e.clientX, y: e.clientY };
+    canvas.setPointerCapture(e.pointerId);
+  });
+
+  canvas.addEventListener('pointermove', (e) => {
+    if (!isDragging) return;
+    const dx = e.clientX - prevMouse.x;
+    const dy = e.clientY - prevMouse.y;
+    targetRotation.y += dx * 0.008;
+    targetRotation.x += dy * 0.005;
+    targetRotation.x = Math.max(-1.2, Math.min(1.2, targetRotation.x));
+    prevMouse = { x: e.clientX, y: e.clientY };
+  });
+
+  canvas.addEventListener('pointerup', () => { isDragging = false; });
+
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    cameraDistance += e.deltaY * 0.005;
+    cameraDistance = Math.max(2.5, Math.min(8, cameraDistance));
+  }, { passive: false });
+
+  // Touch support
+  let touchStart = null;
+  let touchDist = null;
+
+  canvas.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 1) {
+      touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    } else if (e.touches.length === 2) {
+      touchDist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+    }
+  }, { passive: true });
+
+  canvas.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    if (e.touches.length === 1 && touchStart) {
+      const dx = e.touches[0].clientX - touchStart.x;
+      const dy = e.touches[0].clientY - touchStart.y;
+      targetRotation.y += dx * 0.008;
+      targetRotation.x += dy * 0.005;
+      targetRotation.x = Math.max(-1.2, Math.min(1.2, targetRotation.x));
+      touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    } else if (e.touches.length === 2 && touchDist !== null) {
+      const newDist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      cameraDistance *= touchDist / newDist;
+      cameraDistance = Math.max(2.5, Math.min(8, cameraDistance));
+      touchDist = newDist;
+    }
+  }, { passive: false });
+
+  // ─── Animation loop ────────────────────────────────────────────────────────
+  let time = 0;
+  function animate() {
+    requestAnimationFrame(animate);
+    time += 0.016;
+
+    // Smooth rotation
+    rotation.x += (targetRotation.x - rotation.x) * 0.08;
+    rotation.y += (targetRotation.y - rotation.y) * 0.08;
+
+    // Auto-rotate slowly when not dragging
+    if (!isDragging) {
+      targetRotation.y += 0.003;
+    }
+
+    camera.position.x = Math.sin(rotation.y) * cameraDistance;
+    camera.position.z = Math.cos(rotation.y) * cameraDistance;
+    camera.position.y = 0.8 + Math.sin(rotation.x) * 2;
+    camera.lookAt(0, 1.0, 0);
+
+    // Pulse glow spheres
+    bodyGroup.children.forEach(child => {
+      if (child.userData.pulse) {
+        child.material.opacity = child.userData.baseOpacity + Math.sin(time * 2.5) * 0.1;
+        child.scale.setScalar(1 + Math.sin(time * 2) * 0.08);
+      }
+    });
+
+    renderer.render(scene, camera);
+  }
+
+  animate();
+
+  // ─── Resize handler ────────────────────────────────────────────────────────
+  bodyScene = {
+    resize: () => {
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    }
+  };
+
+  window.addEventListener('resize', bodyScene.resize);
+}
+
+// ─── Load latest chart ────────────────────────────────────────────────────────
+async function loadLatestChart() {
+  try {
+    const res = await fetch('/chart/latest');
+    const data = await res.json();
+    if (data.chart) {
+      renderChart(data.chart);
+      document.getElementById('status-label').textContent = 'Ready';
+      document.getElementById('status-dot').className = 'status-dot';
+    }
+  } catch (e) { console.warn('Chart load error:', e); }
+}
+
+// ─── Helper ───────────────────────────────────────────────────────────────────
+function escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── Actions ──────────────────────────────────────────────────────────────────
+document.getElementById('btn-refresh').addEventListener('click', loadLatestChart);
+
+document.getElementById('btn-export').addEventListener('click', () => {
+  if (!currentChart) { alert('No chart to export yet.'); return; }
+  const blob = new Blob([JSON.stringify(currentChart, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `chart_${currentChart.sessionId ?? 'export'}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+loadLatestChart();
+pollInterval = setInterval(pollStatus, 3000);
+initSSE();
+</script>
+</body>
+</html>

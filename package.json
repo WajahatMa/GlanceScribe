@@ -1,0 +1,20 @@
+{
+  "name": "glancescribe",
+  "version": "2.0.0",
+  "description": "GlanceScribe — AI-powered medical consultation recorder for Meta Glasses",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "multer": "^1.4.5-lts.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
