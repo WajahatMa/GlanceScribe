@@ -237,6 +237,16 @@ app.post('/session/stop', async (req, res, next) => {
       broadcastSSE({ type: 'chart_error', sessionId: id, error: analysisError });
     }
 
+    try {
+      const soap = await generateSoapFromTranscript(transcriptText);
+      const soapPath = path.join(process.cwd(), 'data', 'soap.json');
+      await fs.writeFile(soapPath, JSON.stringify(soap, null, 2), 'utf8');
+      console.log(`   📄 SOAP saved: ${soapPath}`);
+      broadcastSSE({ type: 'soap_ready', sessionId: id });
+    } catch (soapErr) {
+      console.error('   ❌ SOAP /finalize failed:', soapErr.message);
+    }
+
     res.json({
       ok: true,
       sessionId: id,
@@ -321,21 +331,125 @@ app.post('/reset', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// ─── SOAP JSON (Gemini 2.5 Flash) ────────────────────────────────────────────
+function getSoapJsonPrompt(transcriptText) {
+  return `Transform the following consultation transcript into a SOAP note as JSON.
+
+Rules:
+- Do NOT invent clinical facts; only use what is in the transcript.
+- Remove filler and small talk.
+- Return ONLY valid JSON (no markdown), matching this shape:
+
+{
+  "meta": { "visit_type": "clinical|non-clinical|unclear", "source": "glancescribe" },
+  "patient": { "name": null, "age": null, "sex": null },
+  "encounter": { "chief_complaint": null, "date_time": null },
+  "soap": {
+    "subjective": { "hpi": [], "ros": { "positive": [], "negative": [] } },
+    "objective": { "vitals": {}, "physical_exam": [] },
+    "assessment": { "problem_list": [] },
+    "plan": { "medications": [], "follow_up": [], "patient_instructions": [] }
+  },
+  "missing_info_questions": [],
+  "uncertainties": []
+}
+
+TRANSCRIPT:
+${transcriptText}`;
+}
+
+async function generateSoapFromTranscript(transcriptText) {
+  const trimmed = (transcriptText || '').trim();
+  if (!trimmed) {
+    return {
+      meta: { visit_type: 'unclear', source: 'glancescribe', note: 'empty transcript' },
+      patient: { name: null, age: null, sex: null },
+      encounter: { chief_complaint: null, date_time: null },
+      soap: {
+        subjective: { hpi: [], ros: { positive: [], negative: [] } },
+        objective: { vitals: {}, physical_exam: [] },
+        assessment: { problem_list: [] },
+        plan: { medications: [], follow_up: [], patient_instructions: [] },
+      },
+      missing_info_questions: [],
+      uncertainties: ['No transcript text to summarize.'],
+    };
+  }
+
+  const apiKey = requireEnv('GEMINI_API_KEY');
+  const modelId = process.env.GEMINI_SOAP_MODEL || 'gemini-2.5-flash';
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const model = genAI.getGenerativeModel({
+    model: modelId,
+    systemInstruction:
+      'You are a careful medical scribe. Output only valid JSON for SOAP documentation. No markdown.',
+  });
+
+  const prompt = getSoapJsonPrompt(trimmed);
+
+  let text;
+  try {
+    const result = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.2,
+        responseMimeType: 'application/json',
+      },
+    });
+    text = result.response.text().trim();
+  } catch (e1) {
+    const result = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.2 },
+    });
+    text = result.response.text().trim();
+  }
+
+  const clean = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+  return JSON.parse(clean);
+}
+
+app.post('/finalize', async (req, res, next) => {
+  try {
+    const file = path.join(process.cwd(), 'data', 'transcript.txt');
+    const transcriptText = await fs.readFile(file, 'utf8').catch(() => '');
+    if (!transcriptText.trim()) {
+      res.status(400).json({ error: 'Transcript is empty' });
+      return;
+    }
+    const soap = await generateSoapFromTranscript(transcriptText);
+    const soapPath = path.join(process.cwd(), 'data', 'soap.json');
+    await fs.writeFile(soapPath, JSON.stringify(soap, null, 2), 'utf8');
+    res.json({ ok: true, path: 'data/soap.json', soap });
+  } catch (e) {
+    next(e);
+  }
+});
+
+app.get('/soap', async (req, res, next) => {
+  try {
+    const soapPath = path.join(process.cwd(), 'data', 'soap.json');
+    const data = await fs.readFile(soapPath, 'utf8');
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.send(data);
+  } catch (e) {
+    res.status(404).json({ error: 'No soap.json yet' });
+  }
+});
+
 // ─── GEMINI ANALYSIS ─────────────────────────────────────────────────────────
 async function runGeminiAnalysis(transcriptText, videoPath, sessionId) {
   const apiKey = requireEnv('GEMINI_API_KEY');
   const genAI = new GoogleGenerativeAI(apiKey);
   const fileManager = new GoogleAIFileManager(apiKey);
 
+  const chartModel =
+    process.env.GEMINI_CHART_MODEL || process.env.GEMINI_SOAP_MODEL || 'gemini-2.5-flash';
   let model;
   try {
-    model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    model = genAI.getGenerativeModel({ model: chartModel });
   } catch {
-    try {
-      model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
-    } catch {
-      model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-    }
+    model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
   }
 
   console.log('   🤖 Running Gemini analysis...');

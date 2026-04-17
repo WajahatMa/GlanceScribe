@@ -509,59 +509,148 @@ function formatTime(ms) {
   return `${String(m).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 }
 
+// Base64 for PCM bytes (required by ElevenLabs `input_audio_chunk`)
+function uint8ToBase64(u8) {
+  let bin = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < u8.length; i += chunk) {
+    bin += String.fromCharCode.apply(null, u8.subarray(i, i + chunk));
+  }
+  return btoa(bin);
+}
+
+/** Always stream 16 kHz mono PCM16 to Scribe (resampled in-browser if the mic runs at another rate). */
+const SCRIBE_PCM_RATE = 16000;
+
+/** Linear resample mono float32 [-1,1] from fromRate → toRate. */
+function resampleFloat32Linear(input, fromRate, toRate) {
+  if (fromRate === toRate || input.length === 0) return input;
+  const ratio = toRate / fromRate;
+  const outLen = Math.max(1, Math.round(input.length * ratio));
+  const out = new Float32Array(outLen);
+  for (let i = 0; i < outLen; i++) {
+    const srcPos = (i + 0.5) / ratio - 0.5;
+    const i0 = Math.floor(srcPos);
+    const i1 = Math.min(i0 + 1, input.length - 1);
+    const f = srcPos - i0;
+    const a = input[Math.max(0, i0)];
+    const b = input[i1];
+    out[i] = a + (b - a) * f;
+  }
+  return out;
+}
+
+function float32ToInt16(float32) {
+  const int16 = new Int16Array(float32.length);
+  for (let i = 0; i < float32.length; i++) {
+    int16[i] = Math.max(-32768, Math.min(32767, Math.round(float32[i] * 32767)));
+  }
+  return int16;
+}
+
+function formatScribeErr(msg) {
+  const e = msg?.error ?? msg?.message_type ?? 'unknown';
+  return typeof e === 'string' ? e : JSON.stringify(e);
+}
+
 // ─── Scribe WebSocket ─────────────────────────────────────────────────────────
 async function startScribe() {
   try {
     const res = await fetch('/scribe-token');
+    if (!res.ok) {
+      const t = await res.text();
+      throw new Error(t || 'scribe-token failed');
+    }
     const { token } = await res.json();
+    if (!token) throw new Error('No token from server');
 
-    // ElevenLabs Scribe v2 realtime WebSocket
-    const ws = new WebSocket(`wss://api.elevenlabs.io/v1/speech-to-text/realtime?token=${token}&model_id=scribe_v2_realtime`);
+    // API expects JSON `input_audio_chunk` + base64 PCM at the rate implied by `audio_format`.
+    // We always send 16 kHz (resampled from whatever the browser AudioContext uses).
+    const qs = new URLSearchParams({
+      token,
+      model_id: 'scribe_v2_realtime',
+      commit_strategy: 'vad',
+      audio_format: 'pcm_16000',
+    });
+    const ws = new WebSocket(`wss://api.elevenlabs.io/v1/speech-to-text/realtime?${qs.toString()}`);
     state.scribeSocket = ws;
+    state.scribeAudioStarted = false;
+
+    const sessionWait = setTimeout(() => {
+      if (!state.scribeAudioStarted) {
+        console.error('Scribe: no session_started within 8s');
+        showToast('⚠️ Scribe: no session (check token / network)');
+        try { ws.close(); } catch (_) {}
+      }
+    }, 8000);
 
     ws.onopen = () => {
-      console.log('Scribe connected');
-      // Send audio config
-      ws.send(JSON.stringify({
-        message_type: 'config',
-        config: {
-          model_id: 'scribe_v2_realtime',
-          encoding: 'pcm_16000',
-          language: 'en',
-        }
-      }));
-      startAudioPump();
+      console.log('Scribe WebSocket open; waiting for session_started…');
     };
 
     ws.onmessage = async (event) => {
       try {
+        if (typeof event.data !== 'string') return;
         const msg = JSON.parse(event.data);
-        
+
+        if (msg.message_type === 'session_started') {
+          console.log('Scribe session:', msg.session_id, msg.config || {});
+          if (!state.scribeAudioStarted) {
+            state.scribeAudioStarted = true;
+            clearTimeout(sessionWait);
+            startAudioPump();
+          }
+          return;
+        }
+
+        const errTypes = [
+          'error', 'auth_error', 'quota_exceeded', 'input_error', 'transcriber_error',
+          'rate_limited', 'commit_throttled', 'unaccepted_terms', 'queue_overflow',
+          'chunk_size_exceeded', 'insufficient_audio_activity', 'session_time_limit_exceeded',
+          'resource_exhausted',
+        ];
+        if (errTypes.includes(msg.message_type)) {
+          console.error('Scribe API error:', msg);
+          showToast('⚠️ Scribe: ' + formatScribeErr(msg));
+          return;
+        }
+
         // Handle both partial and committed transcripts
-        if ((msg.message_type === 'partial_transcript' || msg.message_type === 'committed_transcript') && msg.text?.trim()) {
+        const isCommitted =
+          msg.message_type === 'committed_transcript' ||
+          msg.message_type === 'committed_transcript_with_timestamps';
+        if ((msg.message_type === 'partial_transcript' || isCommitted) && msg.text?.trim()) {
           const line = msg.text.trim();
-          
+
           if (msg.message_type === 'partial_transcript') {
-            // Update UI only for partials
             updateTranscriptPreview(line, true);
           } else {
-            // Committed transcript: finalize in UI and save to server
             state.transcriptLines.push(line);
             updateTranscriptPreview(line, false);
             statLines.textContent = state.transcriptLines.length;
 
-            await fetch('/append', {
+            const ar = await fetch('/append', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ line }),
-            }).catch(() => {});
+            });
+            if (!ar.ok) console.warn('/append failed', ar.status, await ar.text());
           }
         }
-      } catch (e) { console.warn('Scribe msg parse error:', e); }
+      } catch (e) {
+        console.warn('Scribe msg parse error:', e, event.data?.slice?.(0, 200));
+      }
     };
 
-    ws.onerror = (e) => { console.error('Scribe error:', e); showToast('⚠️ Scribe connection error'); };
-    ws.onclose = () => console.log('Scribe closed');
+    ws.onerror = (e) => {
+      clearTimeout(sessionWait);
+      console.error('Scribe error:', e);
+      showToast('⚠️ Scribe connection error');
+    };
+    ws.onclose = () => {
+      clearTimeout(sessionWait);
+      console.log('Scribe closed');
+    };
   } catch (err) {
     console.error('Failed to start Scribe:', err);
     showToast('⚠️ Transcription failed to start');
@@ -572,8 +661,13 @@ async function startScribe() {
 function startAudioPump() {
   if (!state.mediaStream || !state.scribeSocket) return;
 
-  const ctx = new AudioContext({ sampleRate: 16000 });
+  const ctx = new AudioContext();
   state.audioContext = ctx;
+  ctx.resume?.().catch(() => {});
+
+  const inSr = ctx.sampleRate;
+  console.log('Scribe audio: resampling', inSr, 'Hz →', SCRIBE_PCM_RATE, 'Hz for pcm_16000');
+
   const source = ctx.createMediaStreamSource(state.mediaStream);
   const processor = ctx.createScriptProcessor(4096, 1, 1);
 
@@ -582,13 +676,17 @@ function startAudioPump() {
 
   processor.onaudioprocess = (e) => {
     if (state.scribeSocket?.readyState !== WebSocket.OPEN) return;
-    const float32 = e.inputBuffer.getChannelData(0);
-    // Convert to PCM16
-    const int16 = new Int16Array(float32.length);
-    for (let i = 0; i < float32.length; i++) {
-      int16[i] = Math.max(-32768, Math.min(32767, Math.round(float32[i] * 32767)));
-    }
-    state.scribeSocket.send(int16.buffer);
+    const floatIn = e.inputBuffer.getChannelData(0);
+    const float16k = resampleFloat32Linear(floatIn, inSr, SCRIBE_PCM_RATE);
+    const int16 = float32ToInt16(float16k);
+    const u8 = new Uint8Array(int16.buffer, int16.byteOffset, int16.byteLength);
+    const audio_base_64 = uint8ToBase64(u8);
+    state.scribeSocket.send(JSON.stringify({
+      message_type: 'input_audio_chunk',
+      audio_base_64,
+      commit: false,
+      sample_rate: SCRIBE_PCM_RATE,
+    }));
   };
 }
 
@@ -705,8 +803,14 @@ async function stopRecording() {
     });
   }
 
-  // Close Scribe
+  // Flush last segment then close Scribe (helps if commit_strategy were manual or last VAD segment pending)
   if (state.scribeSocket) {
+    try {
+      if (state.scribeSocket.readyState === WebSocket.OPEN) {
+        state.scribeSocket.send(JSON.stringify({ message_type: 'commit' }));
+        await new Promise((r) => setTimeout(r, 400));
+      }
+    } catch (_) {}
     state.scribeSocket.close();
     state.scribeSocket = null;
   }
@@ -724,7 +828,7 @@ async function stopRecording() {
   statusText.textContent = 'Processing…';
   btnMain.disabled = true;
   loadingTitle.textContent = 'Analyzing with AI…';
-  loadingSub.textContent = 'Saving video, running Gemini on transcript';
+  loadingSub.textContent = 'Saving video, chart + SOAP (Gemini)…';
   loadingOverlay.classList.add('visible');
 
   try {
