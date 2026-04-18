@@ -175,6 +175,7 @@
     border: 1px solid var(--border);
     overflow: hidden;
     position: relative;
+    cursor: pointer; /* tap / click to turn on preview before recording (iOS needs a gesture) */
     /* Keep a consistent, phone-like viewport without extreme cropping */
     max-height: 52vh;
     aspect-ratio: 3 / 4;
@@ -484,7 +485,7 @@
 </div>
 
 <!-- Camera -->
-<div class="camera-wrap">
+<div class="camera-wrap" id="camera-wrap" role="button" tabindex="0" aria-label="Camera preview — tap to enable if black">
   <video id="preview" autoplay playsinline muted></video>
   <canvas id="pose-canvas"></canvas>
   <div class="camera-overlay">
@@ -564,6 +565,7 @@ const state = {
 
 // ─── DOM refs ─────────────────────────────────────────────────────────────────
 const preview = document.getElementById('preview');
+const cameraWrap = document.getElementById('camera-wrap');
 const btnMain = document.getElementById('btn-main');
 const btnFlip = document.getElementById('btn-flip');
 const statusPill = document.getElementById('status-pill');
@@ -602,6 +604,7 @@ async function initCamera() {
     preview.srcObject = state.mediaStream;
     // Force an un-mirrored preview (counteracts default mirrored camera behavior).
     preview.style.transform = 'scaleX(-1)';
+    await preview.play().catch(() => {});
     initBodyDetection().catch(() => {});
   } catch (err) {
     state.mediaStream = null;
@@ -611,11 +614,26 @@ async function initCamera() {
 }
 
 // ─── Flip camera ─────────────────────────────────────────────────────────────
-btnFlip.addEventListener('click', async () => {
+btnFlip.addEventListener('click', async (e) => {
+  e.stopPropagation();
   if (state.recording) { showToast('Cannot flip during recording'); return; }
   state.facingMode = state.facingMode === 'environment' ? 'user' : 'environment';
   await initCamera();
   showToast(state.facingMode === 'environment' ? '📷 Back camera' : '🤳 Front camera');
+});
+
+// Live preview before recording: warm camera on load; on strict browsers (e.g. iOS) tap the frame once.
+async function warmPreviewIfIdle() {
+  if (state.recording || state.mediaStream) return;
+  await initCamera();
+  if (state.mediaStream) statusText.textContent = 'Tap Start';
+}
+cameraWrap.addEventListener('click', () => { warmPreviewIfIdle(); });
+cameraWrap.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    warmPreviewIfIdle();
+  }
 });
 
 // ─── Real-time body-part detection (MoveNet via TF.js) ────────────────────────
@@ -640,13 +658,14 @@ let focusFlushTimer = null;
 function drawBodyParts(ctx, keypoints, w, h, map) {
   ctx.clearRect(0, 0, w, h);
   // Pick a single "focused" keypoint each frame.
-  // Heuristic: most centered among labeled points, with a small bias for hands/knees/ankles
-  // so we don't lock onto the head at the start of the visit.
+  // Prefer limbs over the head: if any elbow/wrist/knee/ankle is confident enough,
+  // the head (nose) is not eligible for focus — fixes "elbow in frame but head wins".
   let focusedName = null;
   let focusedScore = -1;
   const cx = w / 2;
   const cy = h / 2;
   const maxD = Math.max(1, Math.hypot(cx, cy));
+  const candidates = [];
   for (const kp of keypoints ?? []) {
     if (!BODY_PARTS[kp.name]) continue;
     const s = kp.score ?? 0;
@@ -661,14 +680,25 @@ function drawBodyParts(ctx, keypoints, w, h, map) {
     const partBoost =
       kp.name === 'left_wrist' || kp.name === 'right_wrist'
         ? 0.18
-        : (kp.name === 'left_knee' || kp.name === 'right_knee' || kp.name === 'left_ankle' || kp.name === 'right_ankle')
-          ? 0.10
-          : 0;
+        : (kp.name === 'left_elbow' || kp.name === 'right_elbow')
+          ? 0.16
+          : (kp.name === 'left_knee' || kp.name === 'right_knee' || kp.name === 'left_ankle' || kp.name === 'right_ankle')
+            ? 0.10
+            : 0;
     const conf = Math.min(1, s);
     const rank = centered + partBoost + conf * 0.08;
-    if (rank > focusedScore) {
-      focusedScore = rank;
-      focusedName = kp.name;
+    candidates.push({ name: kp.name, rank });
+  }
+  const limbNames = new Set([
+    'left_elbow', 'right_elbow', 'left_wrist', 'right_wrist',
+    'left_knee', 'right_knee', 'left_ankle', 'right_ankle',
+  ]);
+  const hasLimb = candidates.some((c) => limbNames.has(c.name));
+  const pool = hasLimb ? candidates.filter((c) => c.name !== 'nose') : candidates;
+  for (const c of pool) {
+    if (c.rank > focusedScore) {
+      focusedScore = c.rank;
+      focusedName = c.name;
     }
   }
 
@@ -1235,6 +1265,10 @@ requestWakeLock();
 async function init() {
   statusPill.className = 'status-pill ready';
   statusText.textContent = 'Tap Start';
+  await initCamera();
+  if (!state.mediaStream) {
+    statusText.textContent = 'Tap camera or Start';
+  }
 }
 
 init();
