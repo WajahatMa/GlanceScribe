@@ -290,6 +290,7 @@ app.post('/session/stop', async (req, res, next) => {
       broadcastSSE({ type: 'soap_ready', sessionId: id });
     } catch (soapErr) {
       console.error('   ❌ SOAP /finalize failed:', soapErr.message);
+      broadcastSSE({ type: 'soap_error', sessionId: id, error: soapErr.message });
     }
 
     res.json({
@@ -381,7 +382,10 @@ function getSoapJsonPrompt(transcriptText) {
   return `Transform the following consultation transcript into a SOAP note as JSON.
 
 Rules:
-- Do NOT invent clinical facts; only use what is in the transcript.
+- Use ONLY information supported by the transcript. Do not fabricate vitals, tests, or diagnoses that were never discussed.
+- You MUST still complete Objective, Assessment, and Plan as usable charting:
+  - If something was explicitly said (exam, impression, meds, follow-up), put it in the structured fields AND/OR the summary strings.
+  - If a section truly has no documented content, set the summary to a brief honest line such as "No objective examination findings documented in this transcript." or "Assessment not explicitly stated; differential may include …" only when reasonably implied by symptoms discussed.
 - Remove filler and small talk.
 - Return ONLY valid JSON (no markdown), matching this shape:
 
@@ -391,9 +395,21 @@ Rules:
   "encounter": { "chief_complaint": null, "date_time": null },
   "soap": {
     "subjective": { "hpi": [], "ros": { "positive": [], "negative": [] } },
-    "objective": { "vitals": {}, "physical_exam": [] },
-    "assessment": { "problem_list": [] },
-    "plan": { "medications": [], "follow_up": [], "patient_instructions": [] }
+    "objective": {
+      "vitals": {},
+      "physical_exam": [],
+      "summary": "2–6 sentences: vitals if stated; exam findings if stated; otherwise explicitly note that none were documented."
+    },
+    "assessment": {
+      "problem_list": [],
+      "summary": "2–6 sentences: working problems or diagnoses mentioned or reasonably implied from the visit; if none stated, summarize clinical question based on HPI."
+    },
+    "plan": {
+      "medications": [],
+      "follow_up": [],
+      "patient_instructions": [],
+      "summary": "2–6 sentences: tests, treatments, referrals, follow-up, patient education actually discussed; if sparse, say what was agreed or 'Plan not fully documented in transcript.'"
+    }
   },
   "missing_info_questions": [],
   "uncertainties": []
@@ -412,9 +428,9 @@ async function generateSoapFromTranscript(transcriptText) {
       encounter: { chief_complaint: null, date_time: null },
       soap: {
         subjective: { hpi: [], ros: { positive: [], negative: [] } },
-        objective: { vitals: {}, physical_exam: [] },
-        assessment: { problem_list: [] },
-        plan: { medications: [], follow_up: [], patient_instructions: [] },
+        objective: { vitals: {}, physical_exam: [], summary: null },
+        assessment: { problem_list: [], summary: null },
+        plan: { medications: [], follow_up: [], patient_instructions: [], summary: null },
       },
       missing_info_questions: [],
       uncertainties: ['No transcript text to summarize.'],
@@ -427,7 +443,9 @@ async function generateSoapFromTranscript(transcriptText) {
   const model = genAI.getGenerativeModel({
     model: modelId,
     systemInstruction:
-      'You are a careful medical scribe. Output only valid JSON for SOAP documentation. No markdown.',
+      'You are a careful medical scribe. Output only valid JSON for SOAP documentation. No markdown. ' +
+      'Always include non-empty objective.summary, assessment.summary, and plan.summary when there is any clinical content, ' +
+      'or explicit sentences stating what was not documented.',
   });
 
   const prompt = getSoapJsonPrompt(trimmed);
@@ -438,6 +456,7 @@ async function generateSoapFromTranscript(transcriptText) {
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       generationConfig: {
         temperature: 0.2,
+        maxOutputTokens: 8192,
         responseMimeType: 'application/json',
       },
     });
@@ -445,7 +464,7 @@ async function generateSoapFromTranscript(transcriptText) {
   } catch (e1) {
     const result = await model.generateContent({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.2 },
+      generationConfig: { temperature: 0.2, maxOutputTokens: 8192 },
     });
     text = result.response.text().trim();
   }
@@ -476,6 +495,8 @@ app.get('/soap', async (req, res, next) => {
     const soapPath = path.join(process.cwd(), 'data', 'soap.json');
     const data = await fs.readFile(soapPath, 'utf8');
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.setHeader('Pragma', 'no-cache');
     res.send(data);
   } catch (e) {
     res.status(404).json({ error: 'No soap.json yet' });

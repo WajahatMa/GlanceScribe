@@ -633,17 +633,17 @@
       </div>
 
       <div class="tabs">
-        <div class="tab active" data-tab="chart">📋 Chart</div>
+        <div class="tab active" data-tab="soap">📄 SOAP Chart</div>
+        <div class="tab" data-tab="chart">📋 Chart</div>
         <div class="tab" data-tab="conversation">💬 Conversation</div>
         <div class="tab" data-tab="body">🫀 3D Body</div>
         <div class="tab" data-tab="plan">💊 Plan</div>
         <div class="tab" data-tab="flags">⚑ Flags</div>
-        <div class="tab" data-tab="soap">📄 SOAP Chart</div>
         <div class="tab" data-tab="json">{ } JSON</div>
       </div>
 
       <!-- Chart tab -->
-      <div class="tab-panel active" id="tab-chart">
+      <div class="tab-panel" id="tab-chart">
         <div id="chart-empty" class="chart-empty">
           <div class="chart-empty-icon">🏥</div>
           <h3>No chart yet</h3>
@@ -717,7 +717,7 @@
       </div>
 
       <!-- SOAP Chart tab (friend’s paper-style outline; wire to soap.json later) -->
-      <div class="tab-panel" id="tab-soap">
+      <div class="tab-panel active" id="tab-soap">
         <p class="soap-tab-hint">Preview of the SOAP note layout. Live fields from <code>data/soap.json</code> can be mapped here next.</p>
         <div class="soap-embed-wrap">
           <div class="soap-embed-top">
@@ -856,13 +856,39 @@ function initSSE() {
         document.getElementById('status-label').textContent = 'Recording';
         document.getElementById('session-badge').textContent = msg.sessionId;
         sessionActive = true;
+        clearSoapPreview();
+        const hint = document.querySelector('.soap-tab-hint');
+        if (hint) {
+          hint.textContent = 'SOAP note updates when the visit ends and AI finishes the note.';
+        }
+      } else if (msg.type === 'session_stop') {
+        clearSoapPreview();
+        const hint = document.querySelector('.soap-tab-hint');
+        if (hint) {
+          hint.dataset.prev = hint.textContent;
+          hint.textContent = 'Finalizing SOAP note after this visit…';
+        }
       } else if (msg.type === 'chart_ready') {
         renderChart(msg.chart);
         document.getElementById('status-dot').className = 'status-dot';
         document.getElementById('status-label').textContent = 'Ready';
-        loadSoapJson();
+        // Do not load SOAP here — chart is saved before soap.json is written; that would show stale data.
       } else if (msg.type === 'soap_ready') {
+        const hint = document.querySelector('.soap-tab-hint');
+        if (hint && hint.dataset.prev) {
+          hint.textContent = hint.dataset.prev;
+          delete hint.dataset.prev;
+        }
         loadSoapJson();
+      } else if (msg.type === 'soap_error') {
+        const hint = document.querySelector('.soap-tab-hint');
+        if (hint && hint.dataset.prev) {
+          hint.textContent = hint.dataset.prev;
+          delete hint.dataset.prev;
+        }
+        if (hint) {
+          hint.textContent = 'SOAP note could not be refreshed for this visit. Check server logs. ' + (msg.error || '');
+        }
       } else if (msg.type === 'video_chunk') {
         document.getElementById('stat-chunks').textContent = msg.chunks;
       }
@@ -1400,6 +1426,37 @@ async function loadLatestChart() {
   loadSoapJson();
 }
 
+function clearSoapPreview() {
+  const el = (id) => document.getElementById(id);
+  const ids = [
+    'soap-preview-patient', 'soap-preview-cc', 'soap-preview-date', 'soap-preview-provider',
+    'soap-field-provider', 'soap-field-patient-name', 'soap-field-dob',
+    'soap-field-session-date', 'soap-field-session-time',
+    'soap-field-subjective', 'soap-field-objective', 'soap-field-assessment', 'soap-field-plan',
+  ];
+  ids.forEach((id) => {
+    const n = el(id);
+    if (n) n.textContent = '—';
+  });
+  const pr = el('soap-field-practice');
+  if (pr) pr.textContent = 'GlanceScribe';
+}
+
+function formatProblemList(probs) {
+  if (!Array.isArray(probs) || !probs.length) return '—';
+  return probs
+    .map((item) => {
+      if (typeof item === 'string') return item;
+      if (item && typeof item === 'object' && item.problem != null) return String(item.problem);
+      try {
+        return JSON.stringify(item);
+      } catch {
+        return String(item);
+      }
+    })
+    .join('; ');
+}
+
 /** Map server `data/soap.json` into the SOAP Chart tab (optional — tab still shows outline if missing). */
 function renderSoapFromJson(s) {
   if (!s || !s.soap) return;
@@ -1419,34 +1476,62 @@ function renderSoapFromJson(s) {
   el('soap-field-patient-name').textContent = p.name || '—';
   el('soap-field-dob').textContent = '—';
   const now = new Date();
-  el('soap-field-session-date').textContent = now.toLocaleDateString();
-  el('soap-field-session-time').textContent = now.toLocaleTimeString();
+  let sessionWhen = now;
+  if (enc.date_time) {
+    const parsed = new Date(enc.date_time);
+    if (!Number.isNaN(parsed.getTime())) sessionWhen = parsed;
+  }
+  el('soap-field-session-date').textContent = sessionWhen.toLocaleDateString();
+  el('soap-field-session-time').textContent = sessionWhen.toLocaleTimeString();
 
   const subj = sp.subjective;
   let subText = '—';
   if (subj?.hpi?.length) subText = subj.hpi.join('\n\n');
+  const ros = subj?.ros;
+  if (ros && (ros.positive?.length || ros.negative?.length)) {
+    const rosLines = [];
+    if (ros.positive?.length) rosLines.push('ROS — Positive: ' + ros.positive.join(', '));
+    if (ros.negative?.length) rosLines.push('ROS — Negative: ' + ros.negative.join(', '));
+    subText = subText === '—' ? rosLines.join('\n') : subText + '\n\n' + rosLines.join('\n');
+  }
   el('soap-field-subjective').textContent = subText;
 
   const obj = sp.objective || {};
-  const objParts = [];
-  if (obj.vitals && Object.keys(obj.vitals).length) objParts.push(JSON.stringify(obj.vitals, null, 0));
-  if (Array.isArray(obj.physical_exam) && obj.physical_exam.length) objParts.push(...obj.physical_exam);
-  el('soap-field-objective').textContent = objParts.length ? objParts.join('\n') : '—';
+  const objChunks = [];
+  if (typeof obj.summary === 'string' && obj.summary.trim()) objChunks.push(obj.summary.trim());
+  if (obj.vitals && Object.keys(obj.vitals).length) {
+    objChunks.push('Vitals: ' + JSON.stringify(obj.vitals));
+  }
+  if (Array.isArray(obj.physical_exam) && obj.physical_exam.length) {
+    objChunks.push(obj.physical_exam.join('\n'));
+  }
+  el('soap-field-objective').textContent = objChunks.length ? objChunks.join('\n\n') : '—';
 
-  const probs = sp.assessment?.problem_list;
-  el('soap-field-assessment').textContent = Array.isArray(probs) && probs.length ? probs.join('; ') : '—';
+  const asmt = sp.assessment || {};
+  const probLine = formatProblemList(asmt.problem_list);
+  let assText = '—';
+  if (typeof asmt.summary === 'string' && asmt.summary.trim()) {
+    assText = asmt.summary.trim();
+    if (probLine !== '—') assText += '\n\nProblems: ' + probLine;
+  } else if (probLine !== '—') {
+    assText = probLine;
+  }
+  el('soap-field-assessment').textContent = assText;
 
   const pl = sp.plan || {};
-  const planParts = [];
-  if (pl.medications?.length) planParts.push('Medications: ' + pl.medications.join('; '));
-  if (pl.follow_up?.length) planParts.push('Follow-up: ' + pl.follow_up.join('; '));
-  if (pl.patient_instructions?.length) planParts.push(pl.patient_instructions.join('\n'));
-  el('soap-field-plan').textContent = planParts.length ? planParts.join('\n\n') : '—';
+  const planChunks = [];
+  if (typeof pl.summary === 'string' && pl.summary.trim()) planChunks.push(pl.summary.trim());
+  const sub = [];
+  if (pl.medications?.length) sub.push('Medications: ' + pl.medications.join('; '));
+  if (pl.follow_up?.length) sub.push('Follow-up: ' + pl.follow_up.join('; '));
+  if (pl.patient_instructions?.length) sub.push(pl.patient_instructions.join('\n'));
+  if (sub.length) planChunks.push(sub.join('\n\n'));
+  el('soap-field-plan').textContent = planChunks.length ? planChunks.join('\n\n') : '—';
 }
 
 async function loadSoapJson() {
   try {
-    const res = await fetch('/soap');
+    const res = await fetch('/soap?t=' + Date.now(), { cache: 'no-store' });
     if (!res.ok) return;
     const soap = await res.json();
     renderSoapFromJson(soap);
