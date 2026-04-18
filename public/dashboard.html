@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GlanceScribe — Dashboard</title>
+<title>GlanceScribe</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -100,9 +100,10 @@
     top: 0;
     z-index: 100;
     box-shadow: var(--shadow-sm);
+    overflow: visible;
   }
 
-  .logo { display: flex; align-items: center; gap: 10px; }
+  .logo { display: flex; align-items: center; gap: 10px; overflow: visible; }
 
   .logo-icon {
     width: 34px; height: 34px;
@@ -116,9 +117,65 @@
   .gs-mark .gs-mark-pencil-cap { fill: #e8a8bd; }
   .gs-mark .gs-mark-ekg { fill: none; stroke: #ef4444; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
-  .logo-text { font-size: 17px; font-weight: 700; letter-spacing: -0.5px; }
-  .logo-text span { color: var(--accent); }
-  .logo-sub { font-weight: 400; color: var(--muted); font-size: 13px; margin-left: 4px; }
+  .logo-text {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .logo-wordmark-wrap {
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: var(--text);
+    line-height: 1;
+    white-space: nowrap;
+  }
+  .logo-wordmark-wrap > span { color: var(--accent); }
+
+  /* Uiverse-style EKG loader (by Userluckytian), scoped to header logo */
+  .logo-text .loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 0;
+    flex-shrink: 0;
+    overflow: visible;
+  }
+  .logo-text .loading svg {
+    display: block;
+    overflow: visible;
+  }
+  .logo-text .loading svg polyline {
+    fill: none;
+    stroke-width: 2.25;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+  .logo-text .loading svg polyline#back {
+    fill: none;
+    stroke: #ff4d5033;
+  }
+  .logo-text .loading svg polyline#front {
+    fill: none;
+    stroke: #00ffff;
+    stroke-dasharray: 48, 144;
+    stroke-dashoffset: 192;
+    animation: dash_682 2s linear infinite;
+    animation-delay: 0s;
+  }
+  .logo-text .loading svg polyline#front2 {
+    fill: none;
+    stroke: #00ffff;
+    stroke-dasharray: 48, 144;
+    stroke-dashoffset: 192;
+    animation: dash_682 2s linear infinite;
+    animation-delay: 1s;
+  }
+  @keyframes dash_682 {
+    72.5% { opacity: 0; }
+    to { stroke-dashoffset: 0; }
+  }
 
   .header-right { display: flex; align-items: center; gap: 10px; }
 
@@ -177,7 +234,7 @@
     text-transform: uppercase; letter-spacing: 0.8px;
   }
 
-  /* Patient chart: eyebrow + title share one grid so text lines up (emoji in its own column) */
+  /* Patient chart: stacked eyebrow + title + accent line */
   .card-header--patient-chart {
     align-items: flex-start;
     padding: 14px 16px 10px;
@@ -186,23 +243,14 @@
 
   .patient-chart-head-text {
     display: grid;
-    grid-template-columns: auto 1fr;
-    column-gap: 8px;
+    grid-template-columns: 1fr;
     row-gap: 6px;
     align-items: center;
     min-width: 0;
   }
 
-  .patient-chart-emoji {
-    grid-column: 1;
-    grid-row: 1;
-    font-size: 14px;
-    line-height: 1;
-    user-select: none;
-  }
-
   .patient-chart-eyebrow {
-    grid-column: 2;
+    grid-column: 1;
     grid-row: 1;
     margin: 0;
     font-size: 11px;
@@ -214,7 +262,7 @@
   }
 
   .patient-chart-title {
-    grid-column: 2;
+    grid-column: 1;
     grid-row: 2;
     margin: 0;
     font-size: 13px;
@@ -281,7 +329,7 @@
   }
 
   .patient-chart-head-text .tabs-ui-title-line {
-    grid-column: 2;
+    grid-column: 1;
     grid-row: 3;
     align-self: stretch;
     height: 2px;
@@ -333,12 +381,78 @@
     color: var(--muted);
     cursor: pointer;
     border-radius: 10px 10px 0 0;
-    transition: color 0.2s ease, background 0.2s ease, font-weight 0.15s ease;
+    transition: color 0.2s ease, background 0.2s ease, font-weight 0.15s ease,
+      text-shadow 0.2s ease, box-shadow 0.2s ease;
     user-select: none;
     line-height: 1.25;
   }
 
-  .tabs-ui-label:hover { color: var(--text); background: rgba(255, 255, 255, 0.04); }
+  .tabs-ui-label-row label[for="pc-tab-soap"]:hover {
+    color: #2dd4bf;
+    background: rgba(45, 212, 191, 0.12);
+    text-shadow:
+      0 0 14px rgba(45, 212, 191, 0.75),
+      0 0 28px rgba(45, 212, 191, 0.4),
+      0 0 44px rgba(45, 212, 191, 0.2);
+    box-shadow:
+      0 0 22px rgba(45, 212, 191, 0.35),
+      0 0 40px rgba(45, 212, 191, 0.18);
+  }
+  .tabs-ui-label-row label[for="pc-tab-highlight"]:hover {
+    color: #a78bfa;
+    background: rgba(167, 139, 250, 0.12);
+    text-shadow:
+      0 0 14px rgba(167, 139, 250, 0.75),
+      0 0 28px rgba(167, 139, 250, 0.4),
+      0 0 44px rgba(167, 139, 250, 0.2);
+    box-shadow:
+      0 0 22px rgba(167, 139, 250, 0.35),
+      0 0 40px rgba(167, 139, 250, 0.18);
+  }
+  .tabs-ui-label-row label[for="pc-tab-chart"]:hover {
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.12);
+    text-shadow:
+      0 0 14px rgba(56, 189, 248, 0.75),
+      0 0 28px rgba(56, 189, 248, 0.4),
+      0 0 44px rgba(56, 189, 248, 0.2);
+    box-shadow:
+      0 0 22px rgba(56, 189, 248, 0.35),
+      0 0 40px rgba(56, 189, 248, 0.18);
+  }
+  .tabs-ui-label-row label[for="pc-tab-conversation"]:hover {
+    color: #fbbf24;
+    background: rgba(251, 191, 36, 0.12);
+    text-shadow:
+      0 0 14px rgba(251, 191, 36, 0.7),
+      0 0 28px rgba(251, 191, 36, 0.38),
+      0 0 44px rgba(251, 191, 36, 0.18);
+    box-shadow:
+      0 0 22px rgba(251, 191, 36, 0.32),
+      0 0 40px rgba(251, 191, 36, 0.16);
+  }
+  .tabs-ui-label-row label[for="pc-tab-plan"]:hover {
+    color: #4ade80;
+    background: rgba(74, 222, 128, 0.12);
+    text-shadow:
+      0 0 14px rgba(74, 222, 128, 0.7),
+      0 0 28px rgba(74, 222, 128, 0.38),
+      0 0 44px rgba(74, 222, 128, 0.18);
+    box-shadow:
+      0 0 22px rgba(74, 222, 128, 0.32),
+      0 0 40px rgba(74, 222, 128, 0.16);
+  }
+  .tabs-ui-label-row label[for="pc-tab-flags"]:hover {
+    color: #fb7185;
+    background: rgba(251, 113, 133, 0.12);
+    text-shadow:
+      0 0 14px rgba(251, 113, 133, 0.75),
+      0 0 28px rgba(251, 113, 133, 0.4),
+      0 0 44px rgba(251, 113, 133, 0.2);
+    box-shadow:
+      0 0 22px rgba(251, 113, 133, 0.35),
+      0 0 40px rgba(251, 113, 133, 0.18);
+  }
 
   .tabs-ui-label:focus-visible {
     outline: 2px solid var(--accent);
@@ -349,32 +463,81 @@
   #pc-tab-soap:checked ~ .tabs-ui-label-row label[for="pc-tab-soap"] {
     color: #2dd4bf;
     font-weight: 700;
-    text-shadow: 0 0 14px rgba(45, 212, 191, 0.35);
+    text-shadow:
+      0 0 16px rgba(45, 212, 191, 0.5),
+      0 0 32px rgba(45, 212, 191, 0.25);
   }
   #pc-tab-highlight:checked ~ .tabs-ui-label-row label[for="pc-tab-highlight"] {
     color: #a78bfa;
     font-weight: 700;
-    text-shadow: 0 0 14px rgba(167, 139, 250, 0.35);
+    text-shadow:
+      0 0 16px rgba(167, 139, 250, 0.5),
+      0 0 32px rgba(167, 139, 250, 0.25);
   }
   #pc-tab-chart:checked ~ .tabs-ui-label-row label[for="pc-tab-chart"] {
     color: #38bdf8;
     font-weight: 700;
-    text-shadow: 0 0 14px rgba(56, 189, 248, 0.35);
+    text-shadow:
+      0 0 16px rgba(56, 189, 248, 0.5),
+      0 0 32px rgba(56, 189, 248, 0.25);
   }
   #pc-tab-conversation:checked ~ .tabs-ui-label-row label[for="pc-tab-conversation"] {
     color: #fbbf24;
     font-weight: 700;
-    text-shadow: 0 0 14px rgba(251, 191, 36, 0.3);
+    text-shadow:
+      0 0 16px rgba(251, 191, 36, 0.48),
+      0 0 32px rgba(251, 191, 36, 0.22);
   }
   #pc-tab-plan:checked ~ .tabs-ui-label-row label[for="pc-tab-plan"] {
     color: #4ade80;
     font-weight: 700;
-    text-shadow: 0 0 14px rgba(74, 222, 128, 0.3);
+    text-shadow:
+      0 0 16px rgba(74, 222, 128, 0.48),
+      0 0 32px rgba(74, 222, 128, 0.22);
   }
   #pc-tab-flags:checked ~ .tabs-ui-label-row label[for="pc-tab-flags"] {
     color: #fb7185;
     font-weight: 700;
-    text-shadow: 0 0 14px rgba(251, 113, 133, 0.35);
+    text-shadow:
+      0 0 16px rgba(251, 113, 133, 0.5),
+      0 0 32px rgba(251, 113, 133, 0.25);
+  }
+
+  #pc-tab-soap:checked ~ .tabs-ui-label-row label[for="pc-tab-soap"]:hover {
+    text-shadow:
+      0 0 14px rgba(45, 212, 191, 0.75),
+      0 0 28px rgba(45, 212, 191, 0.4),
+      0 0 44px rgba(45, 212, 191, 0.2);
+  }
+  #pc-tab-highlight:checked ~ .tabs-ui-label-row label[for="pc-tab-highlight"]:hover {
+    text-shadow:
+      0 0 14px rgba(167, 139, 250, 0.75),
+      0 0 28px rgba(167, 139, 250, 0.4),
+      0 0 44px rgba(167, 139, 250, 0.2);
+  }
+  #pc-tab-chart:checked ~ .tabs-ui-label-row label[for="pc-tab-chart"]:hover {
+    text-shadow:
+      0 0 14px rgba(56, 189, 248, 0.75),
+      0 0 28px rgba(56, 189, 248, 0.4),
+      0 0 44px rgba(56, 189, 248, 0.2);
+  }
+  #pc-tab-conversation:checked ~ .tabs-ui-label-row label[for="pc-tab-conversation"]:hover {
+    text-shadow:
+      0 0 14px rgba(251, 191, 36, 0.7),
+      0 0 28px rgba(251, 191, 36, 0.38),
+      0 0 44px rgba(251, 191, 36, 0.18);
+  }
+  #pc-tab-plan:checked ~ .tabs-ui-label-row label[for="pc-tab-plan"]:hover {
+    text-shadow:
+      0 0 14px rgba(74, 222, 128, 0.7),
+      0 0 28px rgba(74, 222, 128, 0.38),
+      0 0 44px rgba(74, 222, 128, 0.18);
+  }
+  #pc-tab-flags:checked ~ .tabs-ui-label-row label[for="pc-tab-flags"]:hover {
+    text-shadow:
+      0 0 14px rgba(251, 113, 133, 0.75),
+      0 0 28px rgba(251, 113, 133, 0.4),
+      0 0 44px rgba(251, 113, 133, 0.2);
   }
 
   .tabs-ui-glider {
@@ -464,7 +627,6 @@
     gap: 10px; padding: 50px 20px; color: var(--muted); text-align: center;
   }
 
-  .chart-empty-icon { font-size: 44px; opacity: 0.35; }
   .chart-empty h3 { font-size: 16px; font-weight: 600; color: var(--text); }
   .chart-empty p { font-size: 13px; max-width: 320px; line-height: 1.5; }
 
@@ -572,7 +734,6 @@
   .flag-urgent { background: var(--red-light); color: var(--red); }
   .flag-followup { background: var(--amber-light); color: var(--amber); }
   .flag-unclear { background: var(--surface2); color: var(--muted); }
-  .flag-icon { font-size: 13px; flex-shrink: 0; }
 
   /* 3D Body (sidebar — grows with column) */
   #body-3d-wrapper {
@@ -967,7 +1128,16 @@
         <path class="gs-mark-ekg" d="M7.5 18.2h2.4l1 1.7 1.4-3.1 1.8 4.5 1-1.7H22.5"/>
       </svg>
     </div>
-    <div class="logo-text">Glance<span>Scribe</span><span class="logo-sub">Dashboard</span></div>
+    <div class="logo-text">
+      <span class="logo-wordmark-wrap">Glance<span>Scribe</span></span>
+      <div class="loading" aria-hidden="true">
+        <svg width="40" height="30" viewBox="-2 -2 68 52" preserveAspectRatio="xMidYMid meet" focusable="false" overflow="visible">
+          <polyline id="back" points="0.157 23.954, 14 23.954, 21.843 48, 43 0, 50 24, 64 24"></polyline>
+          <polyline id="front" points="0.157 23.954, 14 23.954, 21.843 48, 43 0, 50 24, 64 24"></polyline>
+          <polyline id="front2" points="0.157 23.954, 14 23.954, 21.843 48, 43 0, 50 24, 64 24"></polyline>
+        </svg>
+      </div>
+    </div>
   </div>
   <div class="header-right">
     <div class="session-badge" id="session-badge">No session</div>
@@ -1008,14 +1178,13 @@
     <div class="card" style="flex:1;">
       <div class="card-header card-header--patient-chart">
         <div class="patient-chart-head-text">
-          <span class="patient-chart-emoji" aria-hidden="true"></span>
           <p class="patient-chart-eyebrow">Patient Chart</p>
           <h2 class="patient-chart-title">Patient documentation</h2>
           <div class="tabs-ui-title-line" aria-hidden="true"></div>
         </div>
         <div class="patient-chart-actions">
-          <button class="btn" id="btn-refresh" style="height:26px;font-size:11px;">↻ Refresh</button>
-          <button class="btn" id="btn-export" style="height:26px;font-size:11px;">⬇ Export</button>
+          <button class="btn" id="btn-refresh" style="height:26px;font-size:11px;">Refresh</button>
+          <button class="btn" id="btn-export" style="height:26px;font-size:11px;">Export</button>
         </div>
       </div>
 
@@ -1085,7 +1254,7 @@
               <div class="tab-panel" id="tab-highlight">
                       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;">
                         <div style="font-size:12px;color:var(--muted);">Best short clip from this visit (no Gemini video needed).</div>
-                        <button class="btn" id="btn-highlight-refresh" style="height:26px;font-size:11px;">↻ Refresh</button>
+                        <button class="btn" id="btn-highlight-refresh" style="height:26px;font-size:11px;">Refresh</button>
                       </div>
                       <div id="highlight-empty" style="color:var(--muted);font-size:13px;font-style:italic;">No highlight clip yet.</div>
                       <video id="highlight-video" controls playsinline style="display:none;width:100%;max-height:520px;border-radius:12px;border:1px solid var(--border2);background:#000;"></video>
@@ -1093,7 +1262,6 @@
 
               <div class="tab-panel" id="tab-chart">
                       <div id="chart-empty" class="chart-empty">
-                        <div class="chart-empty-icon">🏥</div>
                         <h3>No chart yet</h3>
                         <p>Start a recording session on your iPhone. AI generates a structured chart when you stop.</p>
                       </div>
@@ -1150,7 +1318,7 @@
       <div class="actions-bar">
         <span style="font-size:11px;color:var(--muted);flex:1;" id="last-updated"></span>
         <div class="actions-bar-print-pdf">
-        <button class="btn" id="btn-print" type="button" onclick="printSoapNote()">🖨 Print</button>
+        <button class="btn" id="btn-print" type="button" onclick="printSoapNote()">Print</button>
         <button class="btn" id="btn-download-soap-pdf" type="button" onclick="void downloadSoapPdf()">Download PDF</button>
         </div>
       </div>
@@ -1387,12 +1555,12 @@ function renderChart(chart) {
     const { doctor, patient } = chart.participants;
     pRow.innerHTML = `
       <div class="participant-card doctor">
-        <div class="participant-label">👨‍⚕️ Doctor</div>
+        <div class="participant-label">Doctor</div>
         <div class="participant-name">${doctor?.identified ? 'Identified' : 'Not confirmed'}</div>
         <div class="participant-clue">${escHtml(doctor?.identifyingClues ?? '—')}</div>
       </div>
       <div class="participant-card patient">
-        <div class="participant-label">🧑 Patient</div>
+        <div class="participant-label">Patient</div>
         <div class="participant-name">${escHtml(patient?.name ?? 'Unidentified')} ${patient?.age ? '· ' + escHtml(patient.age) : ''}</div>
         <div class="participant-clue">${escHtml(patient?.identifyingClues ?? '—')}</div>
       </div>
@@ -1478,7 +1646,7 @@ function renderChart(chart) {
     planContent.style.display = 'block';
     planGrid.innerHTML = `
       <div class="plan-item">
-        <div class="plan-item-label">💊 Medications</div>
+        <div class="plan-item-label">Medications</div>
         <div class="plan-item-content">
           ${plan.medications?.length
             ? '<div class="pill-list">' + plan.medications.map(m => `<span class="pill">${escHtml(m)}</span>`).join('') + '</div>'
@@ -1486,11 +1654,11 @@ function renderChart(chart) {
         </div>
       </div>
       <div class="plan-item">
-        <div class="plan-item-label">📅 Follow-Up</div>
+        <div class="plan-item-label">Follow-Up</div>
         <div class="plan-item-content">${escHtml(plan.followUp ?? '—')}</div>
       </div>
       <div class="plan-item" style="grid-column:1/-1">
-        <div class="plan-item-label">📋 Instructions</div>
+        <div class="plan-item-label">Instructions</div>
         <div class="plan-item-content">
           ${plan.instructions?.length
             ? '<ul style="padding-left:14px;list-style:disc;">' + plan.instructions.map(i => `<li style="font-size:12.5px;line-height:1.5;">${escHtml(i)}</li>`).join('') + '</ul>'
@@ -1499,7 +1667,7 @@ function renderChart(chart) {
       </div>
       ${plan.referrals?.length ? `
       <div class="plan-item" style="grid-column:1/-1">
-        <div class="plan-item-label">🔗 Referrals</div>
+        <div class="plan-item-label">Referrals</div>
         <div class="plan-item-content pill-list">${plan.referrals.map(r => `<span class="pill">${escHtml(r)}</span>`).join('')}</div>
       </div>` : ''}
     `;
@@ -1515,19 +1683,19 @@ function renderChart(chart) {
   if (flags?.urgentItems?.length) {
     hasFlags = true;
     flags.urgentItems.forEach(f => {
-      flagsGrid.innerHTML += `<div class="flag-item flag-urgent"><span class="flag-icon">🚨</span>${escHtml(f)}</div>`;
+      flagsGrid.innerHTML += `<div class="flag-item flag-urgent">${escHtml(f)}</div>`;
     });
   }
   if (flags?.requiresFollowUp?.length) {
     hasFlags = true;
     flags.requiresFollowUp.forEach(f => {
-      flagsGrid.innerHTML += `<div class="flag-item flag-followup"><span class="flag-icon">⚠️</span>${escHtml(f)}</div>`;
+      flagsGrid.innerHTML += `<div class="flag-item flag-followup">${escHtml(f)}</div>`;
     });
   }
   if (flags?.unclearItems?.length) {
     hasFlags = true;
     flags.unclearItems.forEach(f => {
-      flagsGrid.innerHTML += `<div class="flag-item flag-unclear"><span class="flag-icon">❓</span>${escHtml(f)}</div>`;
+      flagsGrid.innerHTML += `<div class="flag-item flag-unclear">${escHtml(f)}</div>`;
     });
   }
 
