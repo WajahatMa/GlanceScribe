@@ -333,16 +333,29 @@ app.post('/session/stop', async (req, res, next) => {
       if (videoPath && chosen?.e) {
         const t0 = Number(chosen.e.t_ms) || 0;
         const t1 = Number(chosen.next?.t_ms);
-        const segMs = Number.isFinite(t1) ? Math.max(0, t1 - t0) : 0;
+        const recEndMs = Math.max(0, Math.round(duration * 1000));
+        // Lead-in before focus locks; post-roll after next keypoint (you often keep gesturing).
+        const HIGHLIGHT_LEAD_MS = 2200;
+        const HIGHLIGHT_POST_MS = 8500;
+        const HIGHLIGHT_MIN_MS = 14_000;
+        const HIGHLIGHT_MAX_MS = 48_000;
 
-        // Clip to cover the focused segment plus a little context.
-        const startMs = Math.max(0, t0 - 1500);
-        const durationMs = Math.max(8_000, Math.min(20_000, segMs + 4500));
+        const segmentEndMs = Number.isFinite(t1) ? t1 : recEndMs;
+        const idealEndMs = Math.min(recEndMs, segmentEndMs + HIGHLIGHT_POST_MS);
+        let clipStartMs = Math.max(0, t0 - HIGHLIGHT_LEAD_MS);
+        let durationMs = idealEndMs - clipStartMs;
+        durationMs = Math.max(HIGHLIGHT_MIN_MS, Math.min(HIGHLIGHT_MAX_MS, durationMs));
+        let clipEndMs = clipStartMs + durationMs;
+        if (clipEndMs > recEndMs) {
+          clipStartMs = Math.max(0, recEndMs - durationMs);
+          clipEndMs = recEndMs;
+          durationMs = Math.max(0, clipEndMs - clipStartMs);
+        }
 
         highlightFilename = await writeHighlightClip({
           sourcePath: videoPath,
           sessionId: id,
-          startMs,
+          startMs: clipStartMs,
           durationMs,
         });
         if (highlightFilename) {
@@ -502,7 +515,7 @@ async function writeHighlightClip({ sourcePath, sessionId, startMs, durationMs }
   if (!ffmpegAvailable) return null;
   if (!sourcePath) return null;
   const startSec = Math.max(0, startMs / 1000);
-  const durSec = Math.max(4, Math.min(20, (durationMs ?? 14_000) / 1000));
+  const durSec = Math.max(6, Math.min(48, (durationMs ?? 14_000) / 1000));
   const outName = `${sessionId}_highlight.mp4`;
   const outPath = path.join(VIDEO_DIR, outName);
 
@@ -536,7 +549,102 @@ app.post('/reset', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// ─── SOAP JSON (Gemini 2.5 Flash) ────────────────────────────────────────────
+// ─── SOAP JSON (Gemini) ─────────────────────────────────────────────────────
+/** Build an ordered, deduped model list so 403/allowlist on one id can fall through. */
+function uniqueGeminiModels(primary, ...fallbacks) {
+  const out = [];
+  const add = (m) => {
+    if (m == null || typeof m !== 'string') return;
+    const x = m.trim();
+    if (!x || out.includes(x)) return;
+    out.push(x);
+  };
+  add(primary);
+  for (const f of fallbacks) add(f);
+  return out;
+}
+
+/**
+ * Fallback chain when primary hits 403/429. Omit bare gemini-1.5-* (often 404).
+ */
+const GEMINI_MODEL_FALLBACKS = [
+  'gemini-2.5-flash-lite',
+  'gemini-2.5-flash',
+  'gemini-2.0-flash-001',
+  'gemini-2.0-flash',
+  'gemini-flash-latest',
+];
+
+function geminiPrimarySoap() {
+  return (
+    process.env.GEMINI_SOAP_MODEL ||
+    process.env.GEMINI_MODEL ||
+    'gemini-2.5-flash-lite'
+  );
+}
+
+function geminiPrimaryChart() {
+  return (
+    process.env.GEMINI_CHART_MODEL ||
+    process.env.GEMINI_SOAP_MODEL ||
+    process.env.GEMINI_MODEL ||
+    'gemini-2.5-flash-lite'
+  );
+}
+
+function soapGeminiModelIds() {
+  return uniqueGeminiModels(geminiPrimarySoap(), ...GEMINI_MODEL_FALLBACKS);
+}
+
+function chartGeminiModelIds() {
+  return uniqueGeminiModels(geminiPrimaryChart(), ...GEMINI_MODEL_FALLBACKS);
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Daily / per-model free-tier limits will not clear on a long wait — try next model instead. */
+function gemini429IsDailyOrModelQuota(err) {
+  const msg = String(err?.message || err);
+  if (/GenerateRequestsPerDay|PerDayPerProjectPerModel|free_tier_requests/i.test(msg)) return true;
+  const m = msg.match(/retry in ([\d.]+)\s*s/i);
+  if (m) {
+    const sec = parseFloat(m[1], 10);
+    if (Number.isFinite(sec) && sec > 20) return true;
+  }
+  return false;
+}
+
+/**
+ * One short retry for transient RPM 429s only. Long "retry in" / daily quota → 0 so the
+ * model loop can switch to the next id (e.g. flash-lite) immediately.
+ */
+function gemini429RetryDelayMs(err) {
+  const msg = String(err?.message || err);
+  if (gemini429IsDailyOrModelQuota(err)) return 0;
+  const m = msg.match(/retry in ([\d.]+)\s*s/i);
+  if (m) {
+    const sec = parseFloat(m[1], 10);
+    if (!Number.isFinite(sec) || sec > 20) return 0;
+    return Math.min(10_000, Math.ceil(sec * 1000) + 400);
+  }
+  if (/429|Too Many Requests|quota exceeded/i.test(msg)) return 2_500;
+  return 0;
+}
+
+async function withGemini429Retry(label, fn) {
+  try {
+    return await fn();
+  } catch (e) {
+    const ms = gemini429RetryDelayMs(e);
+    if (ms <= 0) throw e;
+    console.warn(`   ⏳ ${label}: rate limit — waiting ${Math.round(ms / 1000)}s then retry once…`);
+    await sleep(ms);
+    return await fn();
+  }
+}
+
 function getSoapJsonPrompt(transcriptText) {
   return `Transform the following consultation transcript into a SOAP note as JSON.
 
@@ -597,39 +705,49 @@ async function generateSoapFromTranscript(transcriptText) {
   }
 
   const apiKey = requireEnv('GEMINI_API_KEY');
-  const modelId = process.env.GEMINI_SOAP_MODEL || 'gemini-2.5-flash';
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({
-    model: modelId,
-    systemInstruction:
-      'You are a careful medical scribe. Output only valid JSON for SOAP documentation. No markdown. ' +
-      'Always include non-empty objective.summary, assessment.summary, and plan.summary when there is any clinical content, ' +
-      'or explicit sentences stating what was not documented.',
-  });
-
+  const systemInstruction =
+    'You are a careful medical scribe. Output only valid JSON for SOAP documentation. No markdown. ' +
+    'Always include non-empty objective.summary, assessment.summary, and plan.summary when there is any clinical content, ' +
+    'or explicit sentences stating what was not documented.';
   const prompt = getSoapJsonPrompt(trimmed);
 
-  let text;
-  try {
-    const result = await model.generateContent({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.2,
-        maxOutputTokens: 8192,
-        responseMimeType: 'application/json',
-      },
-    });
-    text = result.response.text().trim();
-  } catch (e1) {
-    const result = await model.generateContent({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.2, maxOutputTokens: 8192 },
-    });
-    text = result.response.text().trim();
+  async function runSoapOnce(modelId) {
+    const model = genAI.getGenerativeModel({ model: modelId, systemInstruction });
+    let text;
+    try {
+      const result = await model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.2,
+          maxOutputTokens: 8192,
+          responseMimeType: 'application/json',
+        },
+      });
+      text = result.response.text().trim();
+    } catch {
+      const result = await model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.2, maxOutputTokens: 8192 },
+      });
+      text = result.response.text().trim();
+    }
+    const clean = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+    return JSON.parse(clean);
   }
 
-  const clean = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
-  return JSON.parse(clean);
+  let lastErr;
+  for (const modelId of soapGeminiModelIds()) {
+    try {
+      const soap = await withGemini429Retry(`SOAP ${modelId}`, () => runSoapOnce(modelId));
+      console.log(`   📄 SOAP via ${modelId}`);
+      return soap;
+    } catch (e) {
+      lastErr = e;
+      console.warn(`   ⚠️ SOAP model ${modelId} failed:`, e.message);
+    }
+  }
+  throw lastErr;
 }
 
 app.post('/finalize', async (req, res, next) => {
@@ -666,15 +784,6 @@ app.get('/soap', async (req, res, next) => {
 async function runGeminiAnalysis(transcriptText, videoPath, sessionId) {
   const apiKey = requireEnv('GEMINI_API_KEY');
   const genAI = new GoogleGenerativeAI(apiKey);
-
-  const chartModel =
-    process.env.GEMINI_CHART_MODEL || process.env.GEMINI_SOAP_MODEL || 'gemini-2.5-flash';
-  let model;
-  try {
-    model = genAI.getGenerativeModel({ model: chartModel });
-  } catch {
-    model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-  }
 
   console.log('   🤖 Running Gemini analysis...');
 
@@ -743,11 +852,25 @@ Remember: Return ONLY the JSON object. No explanation, no markdown code blocks.`
 
   const parts = [{ text: prompt }];
 
-  const result = await model.generateContent(parts);
-  const text = result.response.text().trim();
-  const clean = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
-
-  return JSON.parse(clean);
+  let lastErr;
+  for (const modelId of chartGeminiModelIds()) {
+    try {
+      const runChart = async () => {
+        const model = genAI.getGenerativeModel({ model: modelId });
+        const result = await model.generateContent(parts);
+        const text = result.response.text().trim();
+        const clean = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+        return JSON.parse(clean);
+      };
+      const chart = await withGemini429Retry(`Chart ${modelId}`, runChart);
+      console.log(`   📋 Chart via ${modelId}`);
+      return chart;
+    } catch (e) {
+      lastErr = e;
+      console.warn(`   ⚠️ Chart model ${modelId} failed:`, e.message);
+    }
+  }
+  throw lastErr;
 }
 
 // ─── Error handler ────────────────────────────────────────────────────────────
