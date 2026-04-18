@@ -378,7 +378,14 @@
 
   #body-3d-container:active { cursor: grabbing; }
 
-  #body-3d-container canvas { display: block; width: 100% !important; height: 100% !important; }
+  /* Canvas must stay below HTML overlays (callouts). */
+  #body-3d-container canvas {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+    position: relative;
+    z-index: 1;
+  }
 
   .body3d-controls {
     position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
@@ -395,23 +402,88 @@
   .body3d-btn:hover { background: rgba(255,255,255,0.2); }
   .body3d-btn.active { background: var(--accent); border-color: var(--accent); }
 
-  .body3d-legend {
-    position: absolute; top: 12px; right: 12px; z-index: 10;
-    background: rgba(0,0,0,0.55); border-radius: 10px; padding: 10px 12px;
-    backdrop-filter: blur(8px); color: #fff; font-size: 11px;
-    max-height: 300px; overflow-y: auto; min-width: 160px;
+  /* Labels pinned to 3D hit points (screen-projected each frame) */
+  .body3d-labels-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9;
+    overflow: visible;
   }
 
-  .body3d-legend-title {
-    font-weight: 700; font-size: 10px; text-transform: uppercase;
-    letter-spacing: 0.8px; margin-bottom: 6px; color: rgba(255,255,255,0.6);
+  .body3d-floating-label {
+    position: absolute;
+    left: 0;
+    top: 0;
+    transform: translate(-50%, -100%);
+    margin-top: -6px;
+    font-size: 10px;
+    font-weight: 600;
+    color: #f0f0f0;
+    background: rgba(9, 14, 14, 0.88);
+    border: 1px solid rgba(13, 148, 136, 0.55);
+    padding: 3px 7px;
+    border-radius: 8px;
+    white-space: nowrap;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
   }
 
-  .body3d-legend-item {
-    display: flex; align-items: center; gap: 7px; padding: 3px 0;
+  /* Callout: text box + leader line drawn in WebGL; box tracks projected anchor */
+  .body3d-callout-wrap {
+    position: absolute;
+    left: 0;
+    top: 0;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    z-index: 11;
+    visibility: hidden;
   }
 
-  .body3d-legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .body3d-callout-box {
+    background: rgba(0, 0, 0, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 10px;
+    padding: 10px 12px;
+    backdrop-filter: blur(8px);
+    color: #fff;
+    font-size: 11px;
+    max-width: 200px;
+    box-shadow: 0 2px 14px rgba(0, 0, 0, 0.55);
+  }
+
+  .body3d-callout-kicker {
+    font-weight: 700;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 6px;
+    color: rgba(255, 255, 255, 0.6);
+  }
+
+  .body3d-callout-row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .body3d-callout-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: #ff1a2e;
+  }
+
+  .body3d-callout-name {
+    font-weight: 600;
+    color: #f0f0f0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 
   .body3d-instructions {
     position: absolute; bottom: 12px; right: 12px; z-index: 10;
@@ -647,10 +719,7 @@
         <div id="body-parts-empty" style="color:var(--muted);font-size:12px;font-style:italic;margin-bottom:10px;flex-shrink:0;">No body parts identified yet.</div>
         <div id="body-3d-wrapper">
           <div id="body-3d-container">
-            <div class="body3d-legend" id="body3d-legend" style="display:none;">
-              <div class="body3d-legend-title">Affected Areas</div>
-              <div id="body3d-legend-items"></div>
-            </div>
+            <div id="body3d-labels-overlay" class="body3d-labels-overlay" aria-hidden="true"></div>
             <div class="body3d-instructions">
               Drag to rotate · Scroll to zoom
             </div>
@@ -1060,8 +1129,6 @@ function renderChart(chart) {
     if (c3) {
       while (c3.querySelector('canvas')) c3.querySelector('canvas').remove();
     }
-    const leg = document.getElementById('body3d-legend');
-    if (leg) leg.style.display = 'none';
   }
 
   // Key exchanges
@@ -1160,6 +1227,8 @@ function renderChart(chart) {
 // ─── 3D body: GLB (ui-components) + highlight glows (existing dashboard style) ──
 function findSurfaceHitForGlb(meshes, hint) {
   const raycaster = new THREE.Raycaster();
+  raycaster.far = 50;
+  const h = hint.clone();
   const dirs = [
     new THREE.Vector3(0, 0, 1),
     new THREE.Vector3(0, 0, -1),
@@ -1170,12 +1239,9 @@ function findSurfaceHitForGlb(meshes, hint) {
   ];
   let best = null;
   let bestDistSq = Infinity;
-  const h = hint;
-  for (const dir of dirs) {
-    const origin = h.clone().add(dir.clone().multiplyScalar(1.35));
-    raycaster.set(origin, h.clone().sub(origin).normalize());
-    const hits = raycaster.intersectObjects(meshes, true);
+  function considerHits(hits) {
     for (const hit of hits) {
+      if (!hit.point) continue;
       const d = hit.point.distanceToSquared(h);
       if (d < bestDistSq) {
         bestDistSq = d;
@@ -1183,6 +1249,28 @@ function findSurfaceHitForGlb(meshes, hint) {
       }
     }
   }
+  for (const dir of dirs) {
+    const origin = h.clone().add(dir.clone().multiplyScalar(1.35));
+    raycaster.set(origin, h.clone().sub(origin).normalize());
+    considerHits(raycaster.intersectObjects(meshes, true));
+  }
+  if (best) return best;
+  /* Fallback: ray from outside along hint → center (works when body wraps origin). */
+  const out = h.clone();
+  if (out.lengthSq() < 1e-6) out.set(0, 0.5, 0.4);
+  out.normalize().multiplyScalar(5);
+  raycaster.set(out, h.clone().sub(out).normalize());
+  considerHits(raycaster.intersectObjects(meshes, true));
+  if (best) return best;
+  /* Fallback: from +Z toward hint. */
+  const oz = new THREE.Vector3(h.x, h.y, h.z + 6);
+  raycaster.set(oz, h.clone().sub(oz).normalize());
+  considerHits(raycaster.intersectObjects(meshes, true));
+  if (best) return best;
+  /* Last resort: closest intersection to hint among all upward rays from below. */
+  const under = new THREE.Vector3(h.x, h.y - 3, h.z);
+  raycaster.set(under, new THREE.Vector3(0, 1, 0));
+  considerHits(raycaster.intersectObjects(meshes, true));
   return best;
 }
 
@@ -1233,8 +1321,33 @@ function glbHintForBodyPartName(raw) {
   return new THREE.Vector3(0, 0.2, 0.08);
 }
 
+/**
+ * Outer-side basis for callouts: lateral = away from midline (x=0) in XZ, bitangent = perpendicular for staggering.
+ */
+function computeCalloutDirections(surface, normal) {
+  const up = new THREE.Vector3(0, 1, 0);
+  let lateral = new THREE.Vector3(surface.x, 0, surface.z);
+  if (lateral.lengthSq() < 1e-6) {
+    lateral = new THREE.Vector3().crossVectors(normal, up);
+    if (lateral.lengthSq() < 1e-6) {
+      lateral.set(1, 0, 0);
+    }
+  }
+  lateral.normalize();
+
+  let bitangent = new THREE.Vector3().crossVectors(up, lateral);
+  if (bitangent.lengthSq() < 1e-6) {
+    bitangent = new THREE.Vector3().crossVectors(normal, lateral);
+  }
+  if (bitangent.lengthSq() > 1e-6) bitangent.normalize();
+
+  return { lateral, bitangent };
+}
+
 function render3DBody(bodyParts) {
   const container = document.getElementById('body-3d-container');
+  const labelOverlay = document.getElementById('body3d-labels-overlay');
+  if (labelOverlay) labelOverlay.innerHTML = '';
 
   if (bodyScene && typeof bodyScene.dispose === 'function') {
     bodyScene.dispose();
@@ -1250,7 +1363,7 @@ function render3DBody(bodyParts) {
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
-  camera.position.set(0, 0.5, 3);
+  camera.position.set(0, 0, 3);
 
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setSize(width, height);
@@ -1274,57 +1387,110 @@ function render3DBody(bodyParts) {
   controls.dampingFactor = 0.06;
   controls.minDistance = 0.85;
   controls.maxDistance = 8;
-  controls.target.set(0, 0.5, 0);
+  controls.target.set(0, 0, 0);
   controls.autoRotate = true;
   controls.autoRotateSpeed = 0.65;
   controls.addEventListener('start', () => { controls.autoRotate = false; });
   controls.addEventListener('end', () => { controls.autoRotate = true; });
 
-  const legendItems = document.getElementById('body3d-legend-items');
-  const legend = document.getElementById('body3d-legend');
-  legendItems.innerHTML = '';
-
-  const highlightColors = [0xff4d6d, 0xfbbf24, 0x6c63ff, 0x34d399, 0x0891b2, 0xe879f9, 0xfb923c];
+  /** Affected area = red glow + white leader line + HTML callout (replaces top legend). */
+  const AFFECT_RED = 0xff1a2e;
+  const LEADER_LINE = 0xf5f5f5;
   const list = bodyParts || [];
 
   const highlightSpecs = [];
-  list.forEach((bp, i) => {
+  list.forEach((bp) => {
     const hint = glbHintForBodyPartName(bp.bodyPart);
-    const color = highlightColors[i % highlightColors.length];
+    const color = AFFECT_RED;
     highlightSpecs.push({ bp, hint, color });
-    const colorHex = '#' + new THREE.Color(color).getHexString();
-    legendItems.innerHTML += `
-      <div class="body3d-legend-item">
-        <div class="body3d-legend-dot" style="background:${colorHex}"></div>
-        <span>${escHtml(String(bp.bodyPart ?? ''))}</span>
-      </div>
-    `;
   });
-
-  if (list.length > 0) legend.style.display = 'block';
 
   let cancelled = false;
   let frameId = 0;
   let time = 0;
-
-  function focusOrbitOn(worldPoint) {
-    const offset = new THREE.Vector3().subVectors(camera.position, controls.target);
-    controls.target.copy(worldPoint);
-    camera.position.copy(worldPoint.clone().add(offset));
-    controls.update();
-  }
 
   function pulseHighlightMeshes(root, t) {
     root.traverse((o) => {
       if (!o.isMesh || !o.material) return;
       if (o.userData.pulse) {
         o.material.opacity = o.userData.baseOpacity + Math.sin(t * 2.5) * 0.1;
-        o.scale.setScalar(1 + Math.sin(t * 2) * 0.08);
       }
       if (o.userData.pulseHl) {
         o.material.emissiveIntensity = o.userData.baseEmissive + Math.sin(t * 2.5) * 0.12;
       }
     });
+  }
+
+  /** Distance used for glow scale: clamped so zoom-out does not inflate spheres without limit. */
+  const GLOW_SCALE_DIST_MIN = 0.25;
+  const GLOW_SCALE_DIST_MAX = 3;
+
+  /** Smaller spheres; scale follows camera distance up to a cap (stays modest when zoomed far out). */
+  function updateAffectedGlowScales(root, camera, t) {
+    root.traverse((o) => {
+      if (!o.isMesh || o.userData.glowAnchor == null || o.userData.screenK == null) return;
+      const raw = camera.position.distanceTo(o.userData.glowAnchor);
+      const dist = THREE.MathUtils.clamp(raw, GLOW_SCALE_DIST_MIN, GLOW_SCALE_DIST_MAX);
+      const breathe = o.userData.pulse ? 1 + Math.sin(t * 2) * 0.05 : 1;
+      o.scale.setScalar(dist * o.userData.screenK * breathe);
+    });
+  }
+
+  /** At this camera–surface distance, scale = 1 (matches prior “medium” leader length). */
+  const CALLOUT_REF_DIST = 2.4;
+
+  function buildCalloutLabelWorld(surface, normal, lateral, bitangent, index, scale) {
+    const up = new THREE.Vector3(0, 1, 0);
+    return surface.clone()
+      .addScaledVector(normal, 0.2 * scale)
+      .addScaledVector(lateral, 0.5 * scale)
+      .addScaledVector(up, (0.1 + index * 0.02) * scale)
+      .addScaledVector(bitangent, index * 0.045 * scale);
+  }
+
+  const callouts = [];
+
+  function updateCalloutLeadersAndLabels() {
+    if (!labelOverlay || !callouts.length) return;
+    const w = container.clientWidth;
+    const h = container.clientHeight;
+    const camDir = new THREE.Vector3();
+    camera.getWorldDirection(camDir);
+
+    for (let i = 0; i < callouts.length; i++) {
+      const c = callouts[i];
+      const raw = camera.position.distanceTo(c.surface);
+      const dist = THREE.MathUtils.clamp(raw, GLOW_SCALE_DIST_MIN, GLOW_SCALE_DIST_MAX);
+      const s = dist / CALLOUT_REF_DIST;
+      const labelWorld = buildCalloutLabelWorld(c.surface, c.normal, c.lateral, c.bitangent, c.index, s);
+      const lineStart = c.surface.clone().addScaledVector(c.normal, 0.028 * Math.max(s, 0.45));
+
+      const pos = c.leaderLine.geometry.attributes.position;
+      const arr = pos.array;
+      arr[0] = lineStart.x;
+      arr[1] = lineStart.y;
+      arr[2] = lineStart.z;
+      arr[3] = labelWorld.x;
+      arr[4] = labelWorld.y;
+      arr[5] = labelWorld.z;
+      pos.needsUpdate = true;
+
+      const toPt = labelWorld.clone().sub(camera.position);
+      if (toPt.dot(camDir) <= 0) {
+        c.el.style.visibility = 'hidden';
+        continue;
+      }
+      const p = labelWorld.clone().project(camera);
+      if (p.x < -1.15 || p.x > 1.15 || p.y < -1.15 || p.y > 1.15) {
+        c.el.style.visibility = 'hidden';
+        continue;
+      }
+      const x = (p.x * 0.5 + 0.5) * w;
+      const y = (-p.y * 0.5 + 0.5) * h;
+      c.el.style.left = `${x}px`;
+      c.el.style.top = `${y}px`;
+      c.el.style.visibility = 'visible';
+    }
   }
 
   const loader = new THREE.GLTFLoader();
@@ -1356,51 +1522,132 @@ function render3DBody(bodyParts) {
       model.updateMatrixWorld(true);
       scene.add(model);
 
+      const fitBox = new THREE.Box3().setFromObject(model);
+      const fitCenter = fitBox.getCenter(new THREE.Vector3());
+      const camDist = 3;
+      controls.target.copy(fitCenter);
+      camera.position.set(fitCenter.x, fitCenter.y, fitCenter.z + camDist);
+      controls.update();
+
       const meshes = [];
       model.traverse((ch) => {
         if (ch.isMesh) meshes.push(ch);
       });
 
-      let focusedFirst = false;
+      let calloutIndex = 0;
       highlightSpecs.forEach(({ bp, hint, color }) => {
         const hit = findSurfaceHitForGlb(meshes, hint);
-        if (!hit || !hit.face) return;
-        const n = hit.face.normal.clone().transformDirection(hit.object.matrixWorld).normalize();
-        const pt = hit.point.clone().addScaledVector(n, 0.028);
+        if (!hit || !hit.point) {
+          console.warn('[3D body] No surface hit for area:', bp?.bodyPart, 'hint:', hint);
+          return;
+        }
+        let n;
+        if (hit.face) {
+          n = hit.face.normal.clone().transformDirection(hit.object.matrixWorld).normalize();
+        } else if (hit.normal) {
+          n = hit.normal.clone().transformDirection(hit.object.matrixWorld).normalize();
+        } else {
+          n = new THREE.Vector3(0, 0, 1);
+        }
+        const surface = hit.point.clone();
+        const pt = surface.clone().addScaledVector(n, 0.04);
+
+        /* Unit spheres; scale = distance × screenK each frame (zoom-responsive, smaller on screen). */
+        const bloomMat = new THREE.MeshBasicMaterial({
+          color: color,
+          transparent: true,
+          opacity: 0.5,
+          depthWrite: false,
+          depthTest: true,
+          blending: THREE.AdditiveBlending,
+        });
+        const bloom = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 20), bloomMat);
+        bloom.position.copy(surface.clone().addScaledVector(n, 0.02));
+        bloom.userData.glowAnchor = surface.clone();
+        bloom.userData.screenK = 0.052;
+        bloom.userData.pulse = true;
+        bloom.userData.baseOpacity = 0.5;
+        bloom.renderOrder = 100;
+        scene.add(bloom);
+
+        const rimMat = new THREE.MeshBasicMaterial({
+          color: color,
+          transparent: true,
+          opacity: 0.24,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending,
+        });
+        const rim = new THREE.Mesh(new THREE.SphereGeometry(1, 14, 14), rimMat);
+        rim.position.copy(surface.clone().addScaledVector(n, 0.012));
+        rim.userData.glowAnchor = surface.clone();
+        rim.userData.screenK = 0.068;
+        rim.userData.pulse = true;
+        rim.userData.baseOpacity = 0.24;
+        rim.renderOrder = 99;
+        scene.add(rim);
 
         const hlMat = new THREE.MeshPhongMaterial({
           color: color,
           emissive: color,
-          emissiveIntensity: 0.42,
-          shininess: 55,
+          emissiveIntensity: 1.15,
+          shininess: 40,
           transparent: true,
-          opacity: 0.9,
+          opacity: 1,
         });
-        const hlMesh = new THREE.Mesh(new THREE.SphereGeometry(0.062, 14, 14), hlMat);
+        const hlMesh = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 16), hlMat);
         hlMesh.position.copy(pt);
+        hlMesh.userData.glowAnchor = surface.clone();
+        hlMesh.userData.screenK = 0.019;
         hlMesh.userData.bodyPart = bp.bodyPart;
         hlMesh.userData.pulseHl = true;
-        hlMesh.userData.baseEmissive = 0.42;
+        hlMesh.userData.pulse = true;
+        hlMesh.userData.baseEmissive = 1.15;
+        hlMesh.renderOrder = 101;
         scene.add(hlMesh);
 
-        const glowMat = new THREE.MeshBasicMaterial({
-          color: color,
+        const idx = calloutIndex;
+        calloutIndex += 1;
+        const { lateral, bitangent } = computeCalloutDirections(surface, n);
+        const rawD = camera.position.distanceTo(surface);
+        const dist0 = THREE.MathUtils.clamp(rawD, GLOW_SCALE_DIST_MIN, GLOW_SCALE_DIST_MAX);
+        const s0 = dist0 / CALLOUT_REF_DIST;
+        const labelWorld0 = buildCalloutLabelWorld(surface, n, lateral, bitangent, idx, s0);
+        const lineStart0 = surface.clone().addScaledVector(n, 0.028 * Math.max(s0, 0.45));
+        const leaderGeom = new THREE.BufferGeometry().setFromPoints([lineStart0, labelWorld0]);
+        const leaderMat = new THREE.LineBasicMaterial({
+          color: LEADER_LINE,
           transparent: true,
-          opacity: 0.22,
+          opacity: 0.88,
+          depthTest: false,
         });
-        const glow = new THREE.Mesh(new THREE.SphereGeometry(0.15, 12, 12), glowMat);
-        glow.position.copy(hit.point.clone().addScaledVector(n, 0.012));
-        glow.userData.pulse = true;
-        glow.userData.baseOpacity = 0.22;
-        scene.add(glow);
+        const leaderLine = new THREE.Line(leaderGeom, leaderMat);
+        leaderLine.frustumCulled = false;
+        leaderLine.renderOrder = 1002;
+        scene.add(leaderLine);
 
-        if (!focusedFirst) {
-          focusedFirst = true;
-          focusOrbitOn(hit.point.clone());
+        if (labelOverlay) {
+          const wrap = document.createElement('div');
+          wrap.className = 'body3d-callout-wrap';
+          wrap.innerHTML = `
+            <div class="body3d-callout-box">
+              <div class="body3d-callout-kicker">Affected area</div>
+              <div class="body3d-callout-row">
+                <span class="body3d-callout-dot" aria-hidden="true"></span>
+                <span class="body3d-callout-name">${escHtml(String(bp.bodyPart ?? ''))}</span>
+              </div>
+            </div>`;
+          labelOverlay.appendChild(wrap);
+          callouts.push({
+            surface: surface.clone(),
+            normal: n.clone(),
+            lateral: lateral.clone(),
+            bitangent: bitangent.clone(),
+            index: idx,
+            leaderLine,
+            el: wrap,
+          });
         }
       });
-
-      controls.update();
     },
     undefined,
     (err) => console.warn('GLB load error:', err)
@@ -1412,6 +1659,8 @@ function render3DBody(bodyParts) {
     time += 0.016;
     pulseHighlightMeshes(scene, time);
     controls.update();
+    updateAffectedGlowScales(scene, camera, time);
+    updateCalloutLeadersAndLabels();
     renderer.render(scene, camera);
   }
   animate();
@@ -1422,6 +1671,7 @@ function render3DBody(bodyParts) {
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
     renderer.setSize(w, h);
+    updateCalloutLeadersAndLabels();
   }
   window.addEventListener('resize', onResize);
 
@@ -1438,6 +1688,8 @@ function render3DBody(bodyParts) {
           container.removeChild(renderer.domElement);
         }
       } catch (e) {}
+      const lo = document.getElementById('body3d-labels-overlay');
+      if (lo) lo.innerHTML = '';
     },
   };
 }

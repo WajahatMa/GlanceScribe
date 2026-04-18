@@ -48,10 +48,18 @@
       width: 360px; height: 520px;
       background: #090e0e; border: 1px solid rgba(240,240,240,0.14);
       border-radius: 16px; display: flex; flex-direction: column;
-      overflow: hidden; transform: scale(0.95) translateY(10px);
-      opacity: 0; pointer-events: none;
+      overflow: hidden;
+      transform-origin: bottom center;
       transition: transform 0.2s, opacity 0.2s;
       font-family: 'Helvetica Neue', sans-serif;
+    }
+    #gs-chat-panel[data-gs-placement="below"] { transform-origin: top center; }
+    #gs-chat-panel:not(.open) {
+      opacity: 0; pointer-events: none;
+      transform: scale(0.94) translateY(6px);
+    }
+    #gs-chat-panel:not(.open)[data-gs-placement="below"] {
+      transform: scale(0.94) translateY(-6px);
     }
     #gs-chat-panel.open { transform: scale(1) translateY(0); opacity: 1; pointer-events: all; }
     #gs-chat-header {
@@ -134,7 +142,7 @@
     <button id="gs-chat-btn" onclick="gsToggleChat()" title="Medical AI Assistant">
       <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 10H6V10h12v2zm0-3H6V7h12v2z"/></svg>
     </button>
-    <div id="gs-chat-panel">
+    <div id="gs-chat-panel" data-gs-placement="above">
       <div id="gs-chat-header">
         <div class="avatar">AI</div>
         <div><div class="title">Medical Assistant</div><div class="sub">Powered by verified sources</div></div>
@@ -200,19 +208,19 @@
   }
 
   function updatePanelPos(btnLeft, btnTop) {
-    // Prefer above the button; if not enough room, place below.
     const vw = window.innerWidth;
     const vh = window.innerHeight;
 
     const preferredTop = btnTop - GAP - PANEL_H;
     const belowTop = btnTop + BTN_SIZE + GAP;
-    const top = (preferredTop >= MARGIN) ? preferredTop : belowTop;
+    const placeAbove = preferredTop >= MARGIN;
+    let top = placeAbove ? preferredTop : belowTop;
+    panel.dataset.gsPlacement = placeAbove ? 'above' : 'below';
 
-    // Align panel with button side, but keep inside viewport.
-    // If button is on the right half, right-align panel to button.
-    const isRightHalf = (btnLeft + BTN_SIZE / 2) >= vw / 2;
-    const alignedLeft = isRightHalf ? (btnLeft + BTN_SIZE - PANEL_W) : btnLeft;
-    const left = clamp(alignedLeft, MARGIN, Math.max(MARGIN, vw - PANEL_W - MARGIN));
+    // Horizontally center the panel on the bubble (clamped to viewport).
+    const btnCenterX = btnLeft + BTN_SIZE / 2;
+    let left = btnCenterX - PANEL_W / 2;
+    left = clamp(left, MARGIN, Math.max(MARGIN, vw - PANEL_W - MARGIN));
 
     const clampedTop = clamp(top, MARGIN, Math.max(MARGIN, vh - PANEL_H - MARGIN));
     panel.style.left = `${left}px`;
@@ -256,11 +264,10 @@
       suppressNextToggle = false;
       return;
     }
-    panel.classList.toggle('open');
-    // Re-align panel to current button position.
     const left = Number.parseFloat(btn.style.left || '0') || 0;
     const top = Number.parseFloat(btn.style.top || '0') || 0;
     updatePanelPos(left, top);
+    panel.classList.toggle('open');
   };
 
   // ─── Drag to reposition (snap to nearest corner) ───────────────────────────
