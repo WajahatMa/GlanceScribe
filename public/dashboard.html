@@ -49,11 +49,11 @@
   }
 
   /* Clickable effect (teal version of the Uiverse hover style) */
-  button, a, .tab { -webkit-tap-highlight-color: transparent; }
-  :is(button, .btn, .tab, a) {
+  button, a, .tabs-ui-label { -webkit-tap-highlight-color: transparent; }
+  :is(button, .btn, a) {
     transition: all 450ms ease-in-out;
   }
-  :is(button, .btn, .tab):focus-visible {
+  :is(button, .btn):focus-visible {
     outline: none;
     box-shadow:
       inset 0px 1px 0px 0px rgba(240,240,240,0.10),
@@ -61,7 +61,7 @@
       0px 0px 0px 4px rgba(13,148,136,0.18),
       0px 0px 44px 0px var(--glow);
   }
-  :is(button, .btn, .tab):hover {
+  :is(button, .btn):hover {
     background: linear-gradient(0deg, var(--clickable-grad-a), var(--clickable-grad-b));
     border-color: rgba(240,240,240,0.18);
     box-shadow:
@@ -72,7 +72,7 @@
     transform: translateY(-2px);
     color: #fff;
   }
-  :is(button, .btn, .tab):active {
+  :is(button, .btn):active {
     transform: translateY(0px);
     box-shadow:
       inset 0px 1px 0px 0px rgba(240,240,240,0.10),
@@ -177,6 +177,61 @@
     text-transform: uppercase; letter-spacing: 0.8px;
   }
 
+  /* Patient chart: eyebrow + title share one grid so text lines up (emoji in its own column) */
+  .card-header--patient-chart {
+    align-items: flex-start;
+    padding: 14px 16px 10px;
+    border-bottom: none;
+  }
+
+  .patient-chart-head-text {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: 8px;
+    row-gap: 6px;
+    align-items: center;
+    min-width: 0;
+  }
+
+  .patient-chart-emoji {
+    grid-column: 1;
+    grid-row: 1;
+    font-size: 14px;
+    line-height: 1;
+    user-select: none;
+  }
+
+  .patient-chart-eyebrow {
+    grid-column: 2;
+    grid-row: 1;
+    margin: 0;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    line-height: 1.25;
+  }
+
+  .patient-chart-title {
+    grid-column: 2;
+    grid-row: 2;
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: -0.02em;
+    line-height: 1.35;
+  }
+
+  .patient-chart-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-shrink: 0;
+    padding-top: 1px;
+  }
+
   .card-body { padding: 14px 16px; }
 
   /* ─── Video ─────────────────────────────────────────────────────────────── */
@@ -219,22 +274,189 @@
   /* ─── Main panel ──────────────────────────────────────────────────────────── */
   .main-panel { display: flex; flex-direction: column; gap: 14px; }
 
-  /* ─── Tabs ────────────────────────────────────────────────────────────────── */
-  .tabs {
-    display: flex; gap: 0; border-bottom: 1px solid var(--border2); padding: 0 16px;
+  /* ─── Tabs (CSS-only radios + glider, inspired by segmented tab UI) ─────────── */
+  .tabs-ui-outer {
+    margin: 0;
+    padding: 6px 16px 12px;
   }
 
-  .tab {
-    padding: 11px 14px; font-size: 12.5px; font-weight: 500; color: var(--muted);
-    cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px;
-    transition: all 0.15s; user-select: none;
+  .patient-chart-head-text .tabs-ui-title-line {
+    grid-column: 2;
+    grid-row: 3;
+    align-self: stretch;
+    height: 2px;
+    margin-top: 4px;
+    border-radius: 2px;
+    background: linear-gradient(90deg, var(--accent), rgba(13, 148, 136, 0.15), transparent);
+    max-width: 220px;
   }
 
-  .tab:hover { color: var(--text); }
-  .tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 700; text-shadow: 0 0 12px rgba(13,148,136,0.35); }
+  .tabs-ui-container { width: 100%; }
 
-  .tab-panel { display: none; padding: 18px 16px; }
-  .tab-panel.active { display: block; }
+  .tabs-ui-card {
+    position: relative;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .tabs-ui-input {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    clip: rect(00 0 0);
+    clip-path: inset(50%);
+    overflow: hidden;
+  }
+
+  .tabs-ui-label-row {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 4px;
+    padding: 10px 10px 0;
+    position: relative;
+    z-index: 1;
+  }
+
+  .tabs-ui-label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 10px 6px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    border-radius: 10px 10px 0 0;
+    transition: color 0.2s ease, background 0.2s ease, font-weight 0.15s ease;
+    user-select: none;
+    line-height: 1.25;
+  }
+
+  .tabs-ui-label:hover { color: var(--text); background: rgba(255, 255, 255, 0.04); }
+
+  .tabs-ui-label:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+
+  #pc-tab-soap:checked ~ .tabs-ui-label-row label[for="pc-tab-soap"] {
+    color: #2dd4bf;
+    font-weight: 700;
+    text-shadow: 0 0 14px rgba(45, 212, 191, 0.35);
+  }
+  #pc-tab-highlight:checked ~ .tabs-ui-label-row label[for="pc-tab-highlight"] {
+    color: #a78bfa;
+    font-weight: 700;
+    text-shadow: 0 0 14px rgba(167, 139, 250, 0.35);
+  }
+  #pc-tab-chart:checked ~ .tabs-ui-label-row label[for="pc-tab-chart"] {
+    color: #38bdf8;
+    font-weight: 700;
+    text-shadow: 0 0 14px rgba(56, 189, 248, 0.35);
+  }
+  #pc-tab-conversation:checked ~ .tabs-ui-label-row label[for="pc-tab-conversation"] {
+    color: #fbbf24;
+    font-weight: 700;
+    text-shadow: 0 0 14px rgba(251, 191, 36, 0.3);
+  }
+  #pc-tab-plan:checked ~ .tabs-ui-label-row label[for="pc-tab-plan"] {
+    color: #4ade80;
+    font-weight: 700;
+    text-shadow: 0 0 14px rgba(74, 222, 128, 0.3);
+  }
+  #pc-tab-flags:checked ~ .tabs-ui-label-row label[for="pc-tab-flags"] {
+    color: #fb7185;
+    font-weight: 700;
+    text-shadow: 0 0 14px rgba(251, 113, 133, 0.35);
+  }
+
+  .tabs-ui-glider {
+    position: relative;
+    height: 3px;
+    margin: 0 10px;
+    pointer-events: none;
+    z-index: 0;
+    box-sizing: border-box;
+  }
+
+  .tabs-ui-glider::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: calc((100% - 20px) / 6);
+    height: 3px;
+    border-radius: 3px 3px 0 0;
+    background: linear-gradient(90deg, var(--accent), #22c7b8);
+    box-shadow: 0 0 16px rgba(13, 148, 136, 0.45);
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  #pc-tab-soap:checked ~ .tabs-ui-glider::before {
+    transform: translateX(0);
+    background: linear-gradient(90deg, #2dd4bf, #14b8a6);
+    box-shadow: 0 0 16px rgba(45, 212, 191, 0.45);
+  }
+  #pc-tab-highlight:checked ~ .tabs-ui-glider::before {
+    transform: translateX(calc(100% + 4px));
+    background: linear-gradient(90deg, #a78bfa, #8b5cf6);
+    box-shadow: 0 0 16px rgba(167, 139, 250, 0.45);
+  }
+  #pc-tab-chart:checked ~ .tabs-ui-glider::before {
+    transform: translateX(calc(200% + 8px));
+    background: linear-gradient(90deg, #38bdf8, #0ea5e9);
+    box-shadow: 0 0 16px rgba(56, 189, 248, 0.45);
+  }
+  #pc-tab-conversation:checked ~ .tabs-ui-glider::before {
+    transform: translateX(calc(300% + 12px));
+    background: linear-gradient(90deg, #fbbf24, #f59e0b);
+    box-shadow: 0 0 16px rgba(251, 191, 36, 0.4);
+  }
+  #pc-tab-plan:checked ~ .tabs-ui-glider::before {
+    transform: translateX(calc(400% + 16px));
+    background: linear-gradient(90deg, #4ade80, #22c55e);
+    box-shadow: 0 0 16px rgba(74, 222, 128, 0.4);
+  }
+  #pc-tab-flags:checked ~ .tabs-ui-glider::before {
+    transform: translateX(calc(500% + 20px));
+    background: linear-gradient(90deg, #fb7185, #f43f5e);
+    box-shadow: 0 0 16px rgba(251, 113, 133, 0.45);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .tabs-ui-glider::before { transition: none; }
+  }
+
+  .tabs-ui-tabs-shadow {
+    height: 10px;
+    margin: 0 10px;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.12), transparent);
+    border-radius: 0 0 6px 6px;
+    pointer-events: none;
+  }
+
+  .tabs-ui-panels {
+    position: relative;
+    background: var(--surface);
+    border-top: 1px solid var(--border2);
+    min-height: 120px;
+  }
+
+  .tabs-ui-panels .tab-panel { display: none; padding: 18px 16px; }
+
+  #pc-tab-soap:checked ~ .tabs-ui-panels #tab-soap { display: block; }
+  #pc-tab-highlight:checked ~ .tabs-ui-panels #tab-highlight { display: block; }
+  #pc-tab-chart:checked ~ .tabs-ui-panels #tab-chart { display: block; }
+  #pc-tab-conversation:checked ~ .tabs-ui-panels #tab-conversation { display: block; }
+  #pc-tab-plan:checked ~ .tabs-ui-panels #tab-plan { display: block; }
+  #pc-tab-flags:checked ~ .tabs-ui-panels #tab-flags { display: block; }
 
   /* ─── Chart styles ────────────────────────────────────────────────────────── */
   .chart-empty {
@@ -490,14 +712,6 @@
     color: rgba(255,255,255,0.35); font-size: 10px; text-align: right;
   }
 
-  /* JSON view */
-  #json-view {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11.5px; line-height: 1.6; white-space: pre-wrap;
-    background: #0d1117; color: #e6edf3; border-radius: 8px;
-    padding: 14px; overflow: auto; max-height: 500px;
-  }
-
   .notes-box {
     background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px;
     padding: 10px 12px; font-size: 12.5px; color: #92400e; line-height: 1.5;
@@ -514,8 +728,16 @@
 
   /* Actions */
   .actions-bar {
-    display: flex; gap: 8px; padding: 12px 16px;
+    display: flex; gap: 8px; align-items: center;
+    padding: 12px 16px;
     border-top: 1px solid var(--border); background: var(--surface2);
+  }
+
+  .actions-bar-print-pdf {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-shrink: 0;
   }
 
   .btn {
@@ -542,11 +764,6 @@
   }
 
   /* SOAP Chart tab — layout adapted from ui-components ResultsPage (friend’s SOAP outline) */
-  .soap-tab-hint {
-    font-size: 11px; color: var(--muted); margin: -6px 0 10px; line-height: 1.4;
-  }
-  .soap-tab-hint code { font-family: 'JetBrains Mono', monospace; font-size: 10px; background: var(--surface2); padding: 1px 5px; border-radius: 4px; }
-
   .soap-embed-wrap {
     margin: 0 -16px -18px;
     border-radius: 0 0 var(--radius) var(--radius);
@@ -556,33 +773,6 @@
     color: #cbd5e1;
     font-size: 11px;
   }
-  .soap-embed-top {
-    background: #0f1520;
-    border-bottom: 1px solid #1e2a3a;
-    padding: 10px 16px;
-    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;
-  }
-  .soap-embed-brand { font-weight: 700; font-size: 12px; letter-spacing: -0.02em; color: #e2e8f0; }
-  .soap-embed-brand span { color: #a78bfa; }
-  .soap-embed-tags { display: flex; gap: 8px; flex-wrap: wrap; }
-  .soap-tag-green {
-    font-size: 10px; font-family: 'JetBrains Mono', monospace;
-    padding: 3px 10px; border-radius: 20px;
-    background: #0a1a0a; color: #4ade80; border: 1px solid #166534;
-  }
-  .soap-tag-gray {
-    font-size: 10px; font-family: 'JetBrains Mono', monospace;
-    padding: 3px 10px; border-radius: 20px;
-    background: #1e2a3a; color: #64748b; border: 1px solid #1e2a3a;
-  }
-  .soap-embed-patientbar {
-    background: #0d1825;
-    border-bottom: 1px solid #1e2a3a;
-    padding: 8px 16px;
-    display: flex; flex-wrap: wrap; gap: 16px;
-    font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #64748b;
-  }
-  .soap-embed-patientbar strong { color: #94a3b8; font-weight: 500; }
   .soap-embed-doc-area {
     padding: 16px 20px 28px;
     max-width: 720px;
@@ -677,6 +867,92 @@
     font-family: 'Times New Roman', Times, serif;
   }
   .soap-sig-line { border-bottom: 0.5px solid #999; height: 18px; margin-top: 2px; }
+
+  /* Print: only the SOAP note (white paper), not header / sidebar / tabs / chrome */
+  @media print {
+    @page { margin: 12mm; size: auto; }
+
+    body {
+      background: #fff !important;
+      color: #000 !important;
+      -webkit-print-color-adjust: economy;
+      print-color-adjust: economy;
+    }
+
+    .header,
+    .sidebar,
+    .card-header,
+    .patient-chart-eyebrow,
+    .patient-chart-title,
+    .tabs-ui-title-line,
+    .tabs-ui-input,
+    .tabs-ui-label-row,
+    .tabs-ui-glider,
+    .tabs-ui-tabs-shadow,
+    .actions-bar,
+    .tabs-ui-panels .tab-panel:not(#tab-soap) {
+      display: none !important;
+    }
+
+    .layout {
+      display: block !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      max-width: none !important;
+      min-height: auto !important;
+      gap: 0 !important;
+    }
+
+    .main-panel,
+    .card {
+      display: block !important;
+      background: #fff !important;
+      border: none !important;
+      box-shadow: none !important;
+      border-radius: 0 !important;
+      min-height: auto !important;
+    }
+
+    .tabs-ui-panels,
+    .tabs-ui-panels #tab-soap {
+      display: block !important;
+      padding: 0 !important;
+      border: none !important;
+    }
+
+    .tabs-ui-card {
+      border: none !important;
+      background: #fff !important;
+      box-shadow: none !important;
+    }
+
+    .soap-embed-wrap {
+      margin: 0 !important;
+      max-height: none !important;
+      background: #fff !important;
+      overflow: visible !important;
+      border-radius: 0 !important;
+    }
+
+    .soap-embed-doc-area {
+      padding: 0 !important;
+      margin: 0 !important;
+      max-width: none !important;
+    }
+
+    .soap-doc-paper {
+      box-shadow: none !important;
+      border-radius: 0 !important;
+      border: none !important;
+      color: #1a1a1a !important;
+      background: #fff !important;
+    }
+
+    .soap-doc-title-wrap { border-bottom-color: #ccc !important; }
+    .soap-meta-grid { border-bottom-color: #ccc !important; }
+    .soap-block-body,
+    .soap-si-cell { border-color: #bbb !important; }
+  }
 </style>
 </head>
 <body>
@@ -699,9 +975,7 @@
       <div class="status-dot idle" id="status-dot"></div>
       <span id="status-label">Idle</span>
     </div>
-    <a href="/" style="text-decoration:none;">
-      <button class="btn btn-primary" style="height:30px;font-size:11px;">📱 iPhone View</button>
-    </a>
+    <button type="button" class="btn btn-primary" style="height:30px;font-size:11px;" onclick="window.location.href='/'">New Session</button>
   </div>
 </header>
 
@@ -712,7 +986,7 @@
   <aside class="sidebar">
     <div class="card" style="flex:1;min-height:0;display:flex;flex-direction:column;">
       <div class="card-header">
-        <span class="card-title">🫀 3D Body</span>
+        <span class="card-title">3D Body</span>
         <span style="font-size:10px;color:var(--muted)">Drag to rotate</span>
       </div>
       <div class="card-body" style="padding:12px 12px 10px;flex:1;min-height:0;display:flex;flex-direction:column;">
@@ -732,158 +1006,153 @@
   <!-- Main panel -->
   <main class="main-panel">
     <div class="card" style="flex:1;">
-      <div class="card-header" style="padding-bottom:0;border-bottom:none;">
-        <span class="card-title">🏥 Patient Chart</span>
-        <div style="display:flex;gap:6px;align-items:center;">
-          <span id="chart-session-id" style="font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace;"></span>
+      <div class="card-header card-header--patient-chart">
+        <div class="patient-chart-head-text">
+          <span class="patient-chart-emoji" aria-hidden="true"></span>
+          <p class="patient-chart-eyebrow">Patient Chart</p>
+          <h2 class="patient-chart-title">Patient documentation</h2>
+          <div class="tabs-ui-title-line" aria-hidden="true"></div>
+        </div>
+        <div class="patient-chart-actions">
           <button class="btn" id="btn-refresh" style="height:26px;font-size:11px;">↻ Refresh</button>
           <button class="btn" id="btn-export" style="height:26px;font-size:11px;">⬇ Export</button>
         </div>
       </div>
 
-      <div class="tabs">
-        <div class="tab active" data-tab="soap">📄 SOAP Chart</div>
-        <div class="tab" data-tab="highlight">🎞 Highlight</div>
-        <div class="tab" data-tab="chart">📋 Chart</div>
-        <div class="tab" data-tab="conversation">💬 Conversation</div>
-        <div class="tab" data-tab="plan">💊 Plan</div>
-        <div class="tab" data-tab="flags">⚑ Flags</div>
-        <div class="tab" data-tab="json">{ } JSON</div>
-      </div>
-
-      <!-- Chart tab -->
-      <div class="tab-panel" id="tab-chart">
-        <div id="chart-empty" class="chart-empty">
-          <div class="chart-empty-icon">🏥</div>
-          <h3>No chart yet</h3>
-          <p>Start a recording session on your iPhone. AI generates a structured chart when you stop.</p>
-        </div>
-        <div id="chart-content" style="display:none;">
-          <div class="participant-row" id="participants-row"></div>
-          <div class="chart-section">
-            <div class="chart-section-title">Chief Complaint</div>
-            <div class="chief-complaint" id="chief-complaint"></div>
-          </div>
-          <div class="chart-section">
-            <div class="chart-section-title">History of Present Illness</div>
-            <p style="font-size:13px;line-height:1.6;" id="hpi"></p>
-          </div>
-          <div class="chart-section">
-            <div class="chart-section-title">Reported Symptoms</div>
-            <div class="symptom-grid" id="symptoms-grid"></div>
-          </div>
-          <div class="chart-section">
-            <div class="chart-section-title">Physical Examination</div>
-            <p style="font-size:13px;line-height:1.6;" id="exam-findings"></p>
-          </div>
-          <div class="chart-section">
-            <div class="chart-section-title">Doctor's Assessment</div>
-            <p style="font-size:13px;line-height:1.6;font-weight:500;" id="doctor-assessment"></p>
-          </div>
-          <div id="notes-section" class="chart-section" style="display:none;">
-            <div class="chart-section-title">Additional Notes</div>
-            <div class="notes-box" id="chart-notes"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Conversation tab -->
-      <div class="tab-panel" id="tab-conversation">
-        <div class="exchange-list" id="exchange-list">
-          <p class="transcript-empty-msg">No conversation recorded yet.</p>
-        </div>
-      </div>
-
-      <!-- Plan tab -->
-      <div class="tab-panel" id="tab-plan">
-        <div id="plan-empty" style="color:var(--muted);font-size:13px;font-style:italic;">No treatment plan recorded yet.</div>
-        <div id="plan-content" style="display:none;">
-          <div class="plan-grid" id="plan-grid"></div>
-        </div>
-      </div>
-
-      <!-- Flags tab -->
-      <div class="tab-panel" id="tab-flags">
-        <div id="flags-empty" style="color:var(--muted);font-size:13px;font-style:italic;">No flags identified.</div>
-        <div class="flags-grid" id="flags-grid" style="display:none;"></div>
-      </div>
-
-      <!-- SOAP Chart tab (friend’s paper-style outline; wire to soap.json later) -->
-      <div class="tab-panel active" id="tab-soap">
-        <p class="soap-tab-hint">Preview of the SOAP note layout. Live fields from <code>data/soap.json</code> can be mapped here next.</p>
-        <div class="soap-embed-wrap">
-          <div class="soap-embed-top">
-            <div class="soap-embed-brand">Glance<span>Scribe</span></div>
-            <div class="soap-embed-tags">
-              <span class="soap-tag-green">Note complete</span>
-              <span class="soap-tag-gray">Encounter</span>
+      <div class="tabs-ui-outer">
+        <div class="tabs-ui-container">
+          <div class="tabs-ui-card">
+            <input class="tabs-ui-input" type="radio" name="pc-tab" id="pc-tab-soap" checked>
+            <input class="tabs-ui-input" type="radio" name="pc-tab" id="pc-tab-highlight">
+            <input class="tabs-ui-input" type="radio" name="pc-tab" id="pc-tab-chart">
+            <input class="tabs-ui-input" type="radio" name="pc-tab" id="pc-tab-conversation">
+            <input class="tabs-ui-input" type="radio" name="pc-tab" id="pc-tab-plan">
+            <input class="tabs-ui-input" type="radio" name="pc-tab" id="pc-tab-flags">
+            <div class="tabs-ui-label-row">
+              <label class="tabs-ui-label" for="pc-tab-soap">SOAP Chart</label>
+              <label class="tabs-ui-label" for="pc-tab-highlight">Highlight</label>
+              <label class="tabs-ui-label" for="pc-tab-chart">Chart</label>
+              <label class="tabs-ui-label" for="pc-tab-conversation">Conversation</label>
+              <label class="tabs-ui-label" for="pc-tab-plan">Plan</label>
+              <label class="tabs-ui-label" for="pc-tab-flags">Flags</label>
             </div>
-          </div>
-          <div class="soap-embed-patientbar">
-            <span><strong>Patient</strong> <span id="soap-preview-patient">—</span></span>
-            <span><strong>CC</strong> <span id="soap-preview-cc">—</span></span>
-            <span><strong>Date</strong> <span id="soap-preview-date">—</span></span>
-            <span><strong>Provider</strong> <span id="soap-preview-provider">—</span></span>
-          </div>
-          <div class="soap-embed-doc-area">
-              <div class="soap-doc-paper">
-                <div class="soap-doc-title-wrap">
-                  <h2 class="soap-doc-title">— SOAP Note —</h2>
-                </div>
-                <div class="soap-meta-grid">
-                  <div class="soap-meta-row"><b>Practice:</b><span id="soap-field-practice">—</span></div>
-                  <div class="soap-meta-row"><b>Provider:</b><span id="soap-field-provider">—</span></div>
-                  <div class="soap-meta-row"><b>Patient:</b><span id="soap-field-patient-name">—</span></div>
-                  <div class="soap-meta-row"><b>DOB:</b><span id="soap-field-dob">—</span></div>
-                  <div class="soap-meta-row"><b>Session Date:</b><span id="soap-field-session-date">—</span></div>
-                  <div class="soap-meta-row"><b>Session Time:</b><span id="soap-field-session-time">—</span></div>
-                </div>
-                <div class="soap-si-head">Session Information</div>
-                <div class="soap-si-row">
-                  <div class="soap-si-cell"><b>Duration:</b> —</div>
-                  <div class="soap-si-cell"><b>Type:</b> —</div>
-                  <div class="soap-si-cell"><b>Code:</b> —</div>
-                </div>
-                <div class="soap-block-head" style="margin:7px 10px 0;">Subjective</div>
-                <div class="soap-block-body" id="soap-field-subjective">—</div>
-                <div class="soap-block-head" style="margin:7px 10px 0;">Objective</div>
-                <div class="soap-block-body" id="soap-field-objective">—</div>
-                <div class="soap-block-head" style="margin:7px 10px 0;">Assessment</div>
-                <div class="soap-block-body" id="soap-field-assessment">—</div>
-                <div class="soap-block-head" style="margin:7px 10px 0;">Plan</div>
-                <div class="soap-block-body" id="soap-field-plan">—</div>
-                <div class="soap-doc-footer">
-                  <input type="checkbox" checked disabled style="width:10px;height:10px;" aria-hidden="true" />
-                  <span>I declare this information is accurate and complete.</span>
-                </div>
-                <div class="soap-sig-row">
-                  <div><b style="display:block;margin-bottom:2px;">Provider's Signature:</b><div class="soap-sig-line"></div></div>
-                  <div><b style="display:block;margin-bottom:2px;">Date:</b><div class="soap-sig-line"></div></div>
-                </div>
-              </div>
+            <div class="tabs-ui-glider" aria-hidden="true"></div>
+            <div class="tabs-ui-tabs-shadow" aria-hidden="true"></div>
+            <section class="tabs-ui-panels">
+
+              <div class="tab-panel" id="tab-soap">
+                      <div class="soap-embed-wrap">
+                        <div class="soap-embed-doc-area">
+                            <div class="soap-doc-paper">
+                              <div class="soap-doc-title-wrap">
+                                <h2 class="soap-doc-title">— SOAP Note —</h2>
+                              </div>
+                              <div class="soap-meta-grid">
+                                <div class="soap-meta-row"><b>Practice:</b><span id="soap-field-practice">—</span></div>
+                                <div class="soap-meta-row"><b>Provider:</b><span id="soap-field-provider">—</span></div>
+                                <div class="soap-meta-row"><b>Patient:</b><span id="soap-field-patient-name">—</span></div>
+                                <div class="soap-meta-row"><b>DOB:</b><span id="soap-field-dob">—</span></div>
+                                <div class="soap-meta-row"><b>Session Date:</b><span id="soap-field-session-date">—</span></div>
+                                <div class="soap-meta-row"><b>Session Time:</b><span id="soap-field-session-time">—</span></div>
+                              </div>
+                              <div class="soap-si-head">Session Information</div>
+                              <div class="soap-si-row">
+                                <div class="soap-si-cell"><b>Duration:</b> —</div>
+                                <div class="soap-si-cell"><b>Type:</b> —</div>
+                                <div class="soap-si-cell"><b>Code:</b> —</div>
+                              </div>
+                              <div class="soap-block-head" style="margin:7px 10px 0;">Subjective</div>
+                              <div class="soap-block-body" id="soap-field-subjective">—</div>
+                              <div class="soap-block-head" style="margin:7px 10px 0;">Objective</div>
+                              <div class="soap-block-body" id="soap-field-objective">—</div>
+                              <div class="soap-block-head" style="margin:7px 10px 0;">Assessment</div>
+                              <div class="soap-block-body" id="soap-field-assessment">—</div>
+                              <div class="soap-block-head" style="margin:7px 10px 0;">Plan</div>
+                              <div class="soap-block-body" id="soap-field-plan">—</div>
+                              <div class="soap-doc-footer">
+                                <input type="checkbox" checked disabled style="width:10px;height:10px;" aria-hidden="true" />
+                                <span>I declare this information is accurate and complete.</span>
+                              </div>
+                              <div class="soap-sig-row">
+                                <div><b style="display:block;margin-bottom:2px;">Provider's Signature:</b><div class="soap-sig-line"></div></div>
+                                <div><b style="display:block;margin-bottom:2px;">Date:</b><div class="soap-sig-line"></div></div>
+                              </div>
+                            </div>
+                        </div>
+                      </div>
+                    </div>
+
+              <div class="tab-panel" id="tab-highlight">
+                      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;">
+                        <div style="font-size:12px;color:var(--muted);">Best short clip from this visit (no Gemini video needed).</div>
+                        <button class="btn" id="btn-highlight-refresh" style="height:26px;font-size:11px;">↻ Refresh</button>
+                      </div>
+                      <div id="highlight-empty" style="color:var(--muted);font-size:13px;font-style:italic;">No highlight clip yet.</div>
+                      <video id="highlight-video" controls playsinline style="display:none;width:100%;max-height:520px;border-radius:12px;border:1px solid var(--border2);background:#000;"></video>
+                    </div>
+
+              <div class="tab-panel" id="tab-chart">
+                      <div id="chart-empty" class="chart-empty">
+                        <div class="chart-empty-icon">🏥</div>
+                        <h3>No chart yet</h3>
+                        <p>Start a recording session on your iPhone. AI generates a structured chart when you stop.</p>
+                      </div>
+                      <div id="chart-content" style="display:none;">
+                        <div class="participant-row" id="participants-row"></div>
+                        <div class="chart-section">
+                          <div class="chart-section-title">Chief Complaint</div>
+                          <div class="chief-complaint" id="chief-complaint"></div>
+                        </div>
+                        <div class="chart-section">
+                          <div class="chart-section-title">History of Present Illness</div>
+                          <p style="font-size:13px;line-height:1.6;" id="hpi"></p>
+                        </div>
+                        <div class="chart-section">
+                          <div class="chart-section-title">Reported Symptoms</div>
+                          <div class="symptom-grid" id="symptoms-grid"></div>
+                        </div>
+                        <div class="chart-section">
+                          <div class="chart-section-title">Physical Examination</div>
+                          <p style="font-size:13px;line-height:1.6;" id="exam-findings"></p>
+                        </div>
+                        <div class="chart-section">
+                          <div class="chart-section-title">Doctor's Assessment</div>
+                          <p style="font-size:13px;line-height:1.6;font-weight:500;" id="doctor-assessment"></p>
+                        </div>
+                        <div id="notes-section" class="chart-section" style="display:none;">
+                          <div class="chart-section-title">Additional Notes</div>
+                          <div class="notes-box" id="chart-notes"></div>
+                        </div>
+                      </div>
+                    </div>
+
+              <div class="tab-panel" id="tab-conversation">
+                      <div class="exchange-list" id="exchange-list">
+                        <p class="transcript-empty-msg">No conversation recorded yet.</p>
+                      </div>
+                    </div>
+
+              <div class="tab-panel" id="tab-plan">
+                      <div id="plan-empty" style="color:var(--muted);font-size:13px;font-style:italic;">No treatment plan recorded yet.</div>
+                      <div id="plan-content" style="display:none;">
+                        <div class="plan-grid" id="plan-grid"></div>
+                      </div>
+                    </div>
+
+              <div class="tab-panel" id="tab-flags">
+                      <div id="flags-empty" style="color:var(--muted);font-size:13px;font-style:italic;">No flags identified.</div>
+                      <div class="flags-grid" id="flags-grid" style="display:none;"></div>
+                    </div>
+            </section>
           </div>
         </div>
       </div>
-
-      <!-- Highlight tab (auto-clipped video around focused body part) -->
-      <div class="tab-panel" id="tab-highlight">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;">
-          <div style="font-size:12px;color:var(--muted);">Best short clip from this visit (no Gemini video needed).</div>
-          <button class="btn" id="btn-highlight-refresh" style="height:26px;font-size:11px;">↻ Refresh</button>
-        </div>
-        <div id="highlight-empty" style="color:var(--muted);font-size:13px;font-style:italic;">No highlight clip yet.</div>
-        <video id="highlight-video" controls playsinline style="display:none;width:100%;max-height:520px;border-radius:12px;border:1px solid var(--border2);background:#000;"></video>
-      </div>
-
-      <!-- JSON tab -->
-      <div class="tab-panel" id="tab-json">
-        <pre id="json-view">No data yet.</pre>
-      </div>
-
       <div class="actions-bar">
         <span style="font-size:11px;color:var(--muted);flex:1;" id="last-updated"></span>
-        <button class="btn" id="btn-print" onclick="window.print()">🖨 Print</button>
-        <button class="btn btn-primary" onclick="window.location.href='/'">📱 New Session</button>
+        <div class="actions-bar-print-pdf">
+        <button class="btn" id="btn-print" type="button" onclick="printSoapNote()">🖨 Print</button>
+        <button class="btn" id="btn-download-soap-pdf" type="button" onclick="void downloadSoapPdf()">Download PDF</button>
+        </div>
       </div>
     </div>
   </main>
@@ -893,8 +1162,82 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
 <script>
+function printSoapNote() {
+  window.print();
+}
+
+function soapPdfFilename() {
+  const sid = (typeof currentSessionId === 'string' && currentSessionId) ? currentSessionId : '';
+  const safe = sid.replace(/[^\w\-]+/g, '_').replace(/^_|_$/g, '') || 'soap-note';
+  const d = new Date();
+  const stamp = d.getFullYear()
+    + String(d.getMonth() + 1).padStart(2, '0')
+    + String(d.getDate()).padStart(2, '0');
+  return safe + '_' + stamp + '.pdf';
+}
+
+async function downloadSoapPdf() {
+  const el = document.querySelector('.soap-doc-paper');
+  if (!el) {
+    alert('SOAP note content not found.');
+    return;
+  }
+  if (typeof html2pdf === 'undefined') {
+    alert('PDF library did not load. Check your connection and try again, or use Print → Save as PDF.');
+    return;
+  }
+
+  const prevRadio = document.querySelector('input[name="pc-tab"]:checked');
+  const prevId = prevRadio ? prevRadio.id : null;
+  const soapRadio = document.getElementById('pc-tab-soap');
+  if (soapRadio) soapRadio.checked = true;
+  if (typeof bodyScene !== 'undefined' && bodyScene) bodyScene.resize();
+
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+  const btn = document.getElementById('btn-download-soap-pdf');
+  const prevLabel = btn ? btn.textContent : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Generating…';
+  }
+
+  const opt = {
+    margin: [12, 12, 12, 12],
+    filename: soapPdfFilename(),
+    image: { type: 'jpeg', quality: 0.92 },
+    html2canvas: {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      letterRendering: true,
+      backgroundColor: '#ffffff',
+    },
+    jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' },
+    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
+  };
+
+  try {
+    await html2pdf().set(opt).from(el).save();
+  } catch (e) {
+    console.error(e);
+    alert('Could not create PDF. Try Print → Save as PDF instead.');
+  } finally {
+    if (prevId) {
+      const r = document.getElementById(prevId);
+      if (r) r.checked = true;
+      if (typeof bodyScene !== 'undefined' && bodyScene) bodyScene.resize();
+    }
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = prevLabel || 'Download PDF';
+    }
+  }
+}
+
 // ─── State ────────────────────────────────────────────────────────────────────
 let currentChart = null;
 let pollInterval = null;
@@ -903,15 +1246,9 @@ let sessionActive = false;
 let bodyScene = null;
 let currentSessionId = null;
 
-// ─── Tabs ─────────────────────────────────────────────────────────────────────
-document.querySelectorAll('.tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    const name = tab.dataset.tab;
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-    tab.classList.add('active');
-    document.getElementById('tab-' + name).classList.add('active');
-    // Resize 3D scene if needed (body now lives in sidebar)
+// ─── Tabs (CSS radios) — resize canvas when panel changes ─────────────────────
+document.querySelectorAll('input[name="pc-tab"]').forEach((radio) => {
+  radio.addEventListener('change', () => {
     if (bodyScene) bodyScene.resize();
   });
 });
@@ -925,6 +1262,7 @@ async function pollStatus() {
     const dot = document.getElementById('status-dot');
     const label = document.getElementById('status-label');
     const badge = document.getElementById('session-badge');
+    if (!dot || !label || !badge) return;
 
     if (data.active) {
       sessionActive = true;
@@ -940,6 +1278,7 @@ async function pollStatus() {
     } else {
       dot.className = 'status-dot idle';
       label.textContent = 'Idle';
+      badge.textContent = 'No session';
     }
   } catch (e) {
     console.warn('Poll error:', e);
@@ -981,23 +1320,14 @@ function initSSE() {
       } else if (msg.type === 'session_start') {
         document.getElementById('status-dot').className = 'status-dot recording';
         document.getElementById('status-label').textContent = 'Recording';
-        document.getElementById('session-badge').textContent = msg.sessionId;
+        document.getElementById('session-badge').textContent = msg.sessionId ?? 'Active';
         sessionActive = true;
         currentSessionId = msg.sessionId ?? currentSessionId;
         clearSoapPreview();
         clearHighlightPreview();
-        const hint = document.querySelector('.soap-tab-hint');
-        if (hint) {
-          hint.textContent = 'SOAP note updates when the visit ends and AI finishes the note.';
-        }
       } else if (msg.type === 'session_stop') {
         clearSoapPreview();
         clearHighlightPreview();
-        const hint = document.querySelector('.soap-tab-hint');
-        if (hint) {
-          hint.dataset.prev = hint.textContent;
-          hint.textContent = 'Finalizing SOAP note after this visit…';
-        }
       } else if (msg.type === 'chart_ready') {
         renderChart(msg.chart);
         document.getElementById('status-dot').className = 'status-dot';
@@ -1005,11 +1335,6 @@ function initSSE() {
         currentSessionId = msg.sessionId ?? currentSessionId;
         // Do not load SOAP here — chart is saved before soap.json is written; that would show stale data.
       } else if (msg.type === 'soap_ready') {
-        const hint = document.querySelector('.soap-tab-hint');
-        if (hint && hint.dataset.prev) {
-          hint.textContent = hint.dataset.prev;
-          delete hint.dataset.prev;
-        }
         loadSoapJson();
         loadLatestHighlight();
       } else if (msg.type === 'highlight_ready') {
@@ -1017,14 +1342,7 @@ function initSSE() {
           setHighlightFilename(msg.filename);
         }
       } else if (msg.type === 'soap_error') {
-        const hint = document.querySelector('.soap-tab-hint');
-        if (hint && hint.dataset.prev) {
-          hint.textContent = hint.dataset.prev;
-          delete hint.dataset.prev;
-        }
-        if (hint) {
-          hint.textContent = 'SOAP note could not be refreshed for this visit. Check server logs. ' + (msg.error || '');
-        }
+        console.warn('SOAP note could not be refreshed:', msg.error || '(no detail)');
       }
     } catch {}
   };
@@ -1054,10 +1372,6 @@ function renderChart(chart) {
   currentChart = chart;
   document.getElementById('chart-empty').style.display = 'none';
   document.getElementById('chart-content').style.display = 'block';
-  document.getElementById('chart-session-id').textContent = chart.sessionId ?? '';
-
-  // If present, we can reuse this later for highlight targeting / display.
-  // (No UI binding yet—kept minimal.)
 
   const qBadge = document.getElementById('transcript-quality');
   if (qBadge && chart.transcriptQuality) {
@@ -1219,7 +1533,6 @@ function renderChart(chart) {
 
   if (hasFlags) { flagsEmpty.style.display = 'none'; flagsGrid.style.display = 'flex'; }
 
-  document.getElementById('json-view').textContent = JSON.stringify(chart, null, 2);
   document.getElementById('last-updated').textContent = 'Generated: ' + new Date(chart.generatedAt ?? Date.now()).toLocaleString();
 }
 
@@ -1712,7 +2025,6 @@ async function loadLatestChart() {
 function clearSoapPreview() {
   const el = (id) => document.getElementById(id);
   const ids = [
-    'soap-preview-patient', 'soap-preview-cc', 'soap-preview-date', 'soap-preview-provider',
     'soap-field-provider', 'soap-field-patient-name', 'soap-field-dob',
     'soap-field-session-date', 'soap-field-session-time',
     'soap-field-subjective', 'soap-field-objective', 'soap-field-assessment', 'soap-field-plan',
@@ -1747,13 +2059,7 @@ function renderSoapFromJson(s) {
   const enc = s.encounter || {};
   const sp = s.soap;
 
-  const patientLine = [p.name, p.age != null ? String(p.age) : null, p.sex].filter(Boolean).join(', ') || '—';
   const el = (id) => document.getElementById(id);
-  el('soap-preview-patient').textContent = patientLine;
-  el('soap-preview-cc').textContent = enc.chief_complaint || '—';
-  el('soap-preview-date').textContent = enc.date_time || new Date().toLocaleString();
-  el('soap-preview-provider').textContent = '—';
-
   el('soap-field-practice').textContent = 'GlanceScribe';
   el('soap-field-provider').textContent = '—';
   el('soap-field-patient-name').textContent = p.name || '—';
