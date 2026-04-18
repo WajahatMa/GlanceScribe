@@ -407,6 +407,44 @@ app.get('/chart/latest', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+/** Only allow writing chart JSON files under data/ (no path traversal). */
+function safeChartFilename(name) {
+  const base = path.basename(String(name ?? ''));
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]*_chart\.json$/.test(base)) return null;
+  return base;
+}
+
+// Save edited patient chart (includes plan & treatment)
+app.post('/chart/save', async (req, res, next) => {
+  try {
+    const { filename, chart } = req.body ?? {};
+    const safe = safeChartFilename(filename);
+    if (!safe || !chart || typeof chart !== 'object') {
+      res.status(400).json({ error: 'Expected JSON body: { filename: string, chart: object }' });
+      return;
+    }
+    const out = { ...chart, lastEditedAt: new Date().toISOString() };
+    const full = path.join(process.cwd(), 'data', safe);
+    await fs.writeFile(full, JSON.stringify(out, null, 2), 'utf8');
+    res.json({ ok: true, filename: safe });
+  } catch (e) { next(e); }
+});
+
+// Save edited SOAP note
+app.post('/soap/save', async (req, res, next) => {
+  try {
+    const { soap } = req.body ?? {};
+    if (!soap || typeof soap !== 'object') {
+      res.status(400).json({ error: 'Expected JSON body: { soap: object }' });
+      return;
+    }
+    const soapPath = path.join(process.cwd(), 'data', 'soap.json');
+    const out = { ...soap, lastEditedAt: new Date().toISOString() };
+    await fs.writeFile(soapPath, JSON.stringify(out, null, 2), 'utf8');
+    res.json({ ok: true, path: 'data/soap.json' });
+  } catch (e) { next(e); }
+});
+
 // Get latest highlight clip filename (served under /videos/:filename)
 app.get('/highlight/latest', async (req, res, next) => {
   try {

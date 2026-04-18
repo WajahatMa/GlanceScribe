@@ -255,7 +255,7 @@
     margin: 0;
     font-size: 11px;
     font-weight: 700;
-    color: var(--muted);
+    color: rgba(240, 240, 240, 0.72);
     text-transform: uppercase;
     letter-spacing: 0.8px;
     line-height: 1.25;
@@ -265,8 +265,8 @@
     grid-column: 1;
     grid-row: 2;
     margin: 0;
-    font-size: 13px;
-    font-weight: 600;
+    font-size: 15px;
+    font-weight: 750;
     color: var(--text);
     letter-spacing: -0.02em;
     line-height: 1.35;
@@ -376,15 +376,32 @@
     justify-content: center;
     text-align: center;
     padding: 10px 6px;
-    font-size: 11px;
-    font-weight: 500;
-    color: var(--muted);
+    font-size: 12.5px;
+    font-weight: 650;
+    color: rgba(240, 240, 240, 0.72);
     cursor: pointer;
     border-radius: 10px 10px 0 0;
     transition: color 0.2s ease, background 0.2s ease, font-weight 0.15s ease,
       text-shadow 0.2s ease, box-shadow 0.2s ease;
     user-select: none;
     line-height: 1.25;
+  }
+
+  /* Make labels read like real tab titles */
+  .tabs-ui-label-row {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0));
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  /* Selected tab gets a subtle “pill” plate behind text */
+  #pc-tab-soap:checked ~ .tabs-ui-label-row label[for="pc-tab-soap"],
+  #pc-tab-highlight:checked ~ .tabs-ui-label-row label[for="pc-tab-highlight"],
+  #pc-tab-chart:checked ~ .tabs-ui-label-row label[for="pc-tab-chart"],
+  #pc-tab-conversation:checked ~ .tabs-ui-label-row label[for="pc-tab-conversation"],
+  #pc-tab-plan:checked ~ .tabs-ui-label-row label[for="pc-tab-plan"],
+  #pc-tab-flags:checked ~ .tabs-ui-label-row label[for="pc-tab-flags"] {
+    background: rgba(255, 255, 255, 0.04);
+    box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.08);
   }
 
   .tabs-ui-label-row label[for="pc-tab-soap"]:hover {
@@ -650,17 +667,137 @@
 
   .participant-name { font-size: 14px; font-weight: 600; }
   .participant-clue { font-size: 11px; color: var(--muted); margin-top: 3px; line-height: 1.4; }
+  .participant-card.doctor .participant-name,
+  .participant-card.patient .participant-name { color: #111827; }
+  .participant-card.doctor .participant-clue,
+  .participant-card.patient .participant-clue { color: #475569; }
 
   .chart-section { margin-bottom: 18px; }
 
   .chart-section-title {
     font-size: 11px; font-weight: 700; letter-spacing: 0.7px; text-transform: uppercase;
-    color: var(--muted); margin-bottom: 8px; padding-bottom: 5px; border-bottom: 1px solid var(--border);
+    color: rgba(240, 240, 240, 0.78);
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+    text-shadow: 0 0 22px rgba(45, 212, 191, 0.12);
   }
 
   .chief-complaint {
     background: var(--accent-light); border: 1px solid #c4b5fd; border-radius: 10px;
     padding: 12px 14px; font-size: 14px; font-weight: 500; color: var(--accent2); line-height: 1.4;
+  }
+
+  /* Chart: accordion cards to reduce clutter */
+  .chart-accordion {
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 12px;
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+  .chart-accordion[open] {
+    box-shadow: 0 10px 24px -22px rgba(45, 212, 191, 0.35);
+  }
+  .chart-accordion-summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.65px;
+    text-transform: uppercase;
+    color: rgba(240, 240, 240, 0.82);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0));
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    user-select: none;
+  }
+  .chart-accordion-summary::-webkit-details-marker { display: none; }
+  .chart-accordion-summary::after {
+    content: '▾';
+    font-size: 12px;
+    opacity: 0.7;
+    transform: translateY(-1px);
+  }
+  details.chart-accordion[open] > .chart-accordion-summary::after { content: '▴'; }
+  .chart-accordion-body { padding: 10px 12px 12px; }
+  .chart-body-text { font-size: 13px; line-height: 1.65; color: rgba(240,240,240,0.92); }
+  .chart-body-text--strong { font-weight: 600; }
+
+  /* Chart: bubble / categorized cards (more “friendly” than one long page) */
+  .chart-bubble-stack {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .chart-bubble {
+    position: relative;
+    padding: 14px 14px 12px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    background:
+      radial-gradient(1200px 220px at 20% -10%, rgba(45, 212, 191, 0.10), transparent 55%),
+      radial-gradient(900px 220px at 90% -20%, rgba(56, 189, 248, 0.08), transparent 60%),
+      rgba(255, 255, 255, 0.018);
+    box-shadow:
+      0 0 0 1px rgba(0, 0, 0, 0.25),
+      0 14px 32px -28px rgba(45, 212, 191, 0.35);
+  }
+
+  .chart-bubble--assessment {
+    border-color: rgba(167, 139, 250, 0.22);
+    background:
+      radial-gradient(900px 240px at 15% -10%, rgba(167, 139, 250, 0.14), transparent 55%),
+      rgba(255, 255, 255, 0.018);
+    box-shadow:
+      0 0 0 1px rgba(0, 0, 0, 0.25),
+      0 18px 40px -30px rgba(167, 139, 250, 0.35);
+  }
+
+  .chart-bubble-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.03);
+    color: rgba(240, 240, 240, 0.86);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  .chart-bubble-body {
+    color: rgba(240, 240, 240, 0.92);
+  }
+
+  .soap-meta-input {
+    flex: 1;
+    min-width: 0;
+    margin-left: 6px;
+    font: 12px/1.4 'Times New Roman', Times, serif;
+    border: 0.5px solid #999;
+    border-radius: 2px;
+    padding: 2px 6px;
+    background: #fffef8;
+  }
+  textarea.soap-block-body {
+    display: block;
+    width: calc(100% - 20px);
+    margin-left: 10px;
+    margin-right: 10px;
+    min-height: 96px;
+    font: 14px/1.6 'Times New Roman', Times, serif;
+    color: #1a1a1a;
+    resize: vertical;
   }
 
   .symptom-grid { display: flex; flex-wrap: wrap; gap: 7px; }
@@ -683,52 +820,123 @@
   .severity-severe { background: var(--red-light); color: var(--red); }
   .severity-not-specified { background: var(--surface2); color: var(--muted); }
 
-  /* Exchange / conversation */
-  .exchange-list { display: flex; flex-direction: column; gap: 7px; }
+  /* Exchange / conversation — clean, professional chat styling */
+  .exchange-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
 
   .exchange {
-    display: flex; gap: 9px; align-items: flex-start;
-    padding: 9px 11px; border-radius: 8px; border: 1px solid var(--border);
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid var(--border2);
+    background: var(--surface2);
+    max-width: 78%;
   }
 
-  .exchange.doctor { background: #f5f3ff; border-color: #e9d5ff; }
-  .exchange.patient { background: var(--surface2); border-color: var(--border2); }
+  .exchange.doctor {
+    margin-right: auto; /* left side */
+    border-color: rgba(196, 181, 253, 0.28);
+    background: linear-gradient(180deg, rgba(196, 181, 253, 0.09), rgba(11, 20, 20, 0) 70%), var(--surface2);
+    box-shadow: 0 6px 18px -12px rgba(196, 181, 253, 0.35);
+    border-radius: 14px 14px 14px 6px; /* subtle “tail” corner */
+  }
+
+  .exchange.patient {
+    margin-left: auto; /* right side */
+    border-color: rgba(45, 212, 191, 0.24);
+    background: linear-gradient(180deg, rgba(45, 212, 191, 0.07), rgba(11, 20, 20, 0) 70%), var(--surface2);
+    box-shadow: 0 6px 18px -12px rgba(45, 212, 191, 0.28);
+    border-radius: 14px 14px 6px 14px; /* subtle “tail” corner */
+  }
 
   .exchange-avatar {
-    width: 26px; height: 26px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 11px; font-weight: 700; flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 800;
+    flex-shrink: 0;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text);
   }
 
-  .exchange.doctor .exchange-avatar { background: #ddd6fe; color: var(--accent2); }
-  .exchange.patient .exchange-avatar { background: #ccfbf1; color: var(--teal); }
+  .exchange.doctor .exchange-avatar {
+    border-color: rgba(196, 181, 253, 0.35);
+    background: rgba(196, 181, 253, 0.12);
+    color: #e9d5ff;
+  }
+
+  .exchange.patient .exchange-avatar {
+    border-color: rgba(45, 212, 191, 0.32);
+    background: rgba(45, 212, 191, 0.10);
+    color: #99f6e4;
+  }
 
   .exchange-content { flex: 1; min-width: 0; }
-  .exchange-speaker { font-size: 10px; font-weight: 700; letter-spacing: 0.7px; text-transform: uppercase; margin-bottom: 2px; }
-  .exchange.doctor .exchange-speaker { color: var(--accent2); }
-  .exchange.patient .exchange-speaker { color: var(--teal); }
-  .exchange-text { font-size: 12.5px; line-height: 1.5; }
+
+  .exchange-speaker {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    margin-bottom: 3px;
+    color: var(--muted);
+  }
+
+  .exchange.doctor .exchange-speaker { color: rgba(196, 181, 253, 0.95); }
+  .exchange.patient .exchange-speaker { color: rgba(45, 212, 191, 0.95); }
+
+  .exchange-text {
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: rgba(240, 240, 240, 0.92);
+  }
 
   /* Plan */
-  .plan-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .plan-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
   .plan-item {
-    background: var(--surface2); border: 1px solid var(--border2);
-    border-radius: 10px; padding: 10px 12px;
+    background: linear-gradient(155deg, rgba(45, 212, 171, 0.09) 0%, rgba(13, 148, 136, 0.06) 50%, var(--surface2) 100%);
+    border: 1px solid rgba(45, 212, 171, 0.28);
+    border-radius: 12px;
+    padding: 11px 13px;
+    box-shadow:
+      0 0 0 1px rgba(45, 212, 171, 0.06),
+      0 4px 22px -6px rgba(34, 197, 94, 0.18),
+      0 2px 10px rgba(0, 0, 0, 0.2);
   }
 
   .plan-item-label {
     font-size: 10px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.7px; color: var(--muted); margin-bottom: 5px;
+    letter-spacing: 0.7px;
+    color: #5eead4;
+    margin-bottom: 6px;
+    text-shadow: 0 0 18px rgba(45, 212, 171, 0.35);
   }
 
-  .plan-item-content { font-size: 12.5px; line-height: 1.5; }
+  .plan-item-content { font-size: 12.5px; line-height: 1.5; color: var(--text); }
 
-  .pill-list { display: flex; flex-wrap: wrap; gap: 5px; }
+  .pill-list { display: flex; flex-wrap: wrap; gap: 7px; }
 
   .pill {
-    background: var(--surface); border: 1px solid var(--border2);
-    border-radius: 6px; padding: 2px 8px; font-size: 11.5px;
+    background: linear-gradient(180deg, rgba(45, 212, 171, 0.14), rgba(13, 148, 136, 0.1));
+    border: 1px solid rgba(45, 212, 171, 0.42);
+    border-radius: 999px;
+    padding: 4px 11px;
+    font-size: 11.5px;
+    color: #ecfdf5;
+    box-shadow:
+      0 0 12px -2px rgba(45, 212, 171, 0.35),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
   }
 
   /* Flags */
@@ -1121,6 +1329,12 @@
     .soap-meta-grid { border-bottom-color: #ccc !important; }
     .soap-block-body,
     .soap-si-cell { border-color: #bbb !important; }
+    textarea.soap-block-body {
+      border: 0.5px solid #bbb !important;
+      overflow: visible !important;
+      resize: none !important;
+      background: #fff !important;
+    }
   }
 </style>
 </head>
@@ -1191,6 +1405,7 @@
           <div class="tabs-ui-title-line" aria-hidden="true"></div>
         </div>
         <div class="patient-chart-actions">
+          <button class="btn" id="btn-save-soap" type="button" style="height:26px;font-size:11px;">Save SOAP</button>
           <button class="btn" id="btn-refresh" style="height:26px;font-size:11px;">Refresh</button>
           <button class="btn" id="btn-export" style="height:26px;font-size:11px;">Export</button>
         </div>
@@ -1226,8 +1441,8 @@
                               </div>
                               <div class="soap-meta-grid">
                                 <div class="soap-meta-row"><b>Practice:</b><span id="soap-field-practice">—</span></div>
-                                <div class="soap-meta-row"><b>Provider:</b><span id="soap-field-provider">—</span></div>
-                                <div class="soap-meta-row"><b>Patient:</b><span id="soap-field-patient-name">—</span></div>
+                                <div class="soap-meta-row"><b>Provider:</b><input type="text" class="soap-meta-input" id="soap-field-provider-input" autocomplete="off" placeholder="—" /></div>
+                                <div class="soap-meta-row"><b>Patient:</b><input type="text" class="soap-meta-input" id="soap-field-patient-name-input" autocomplete="off" placeholder="—" /></div>
                                 <div class="soap-meta-row"><b>DOB:</b><span id="soap-field-dob">—</span></div>
                                 <div class="soap-meta-row"><b>Session Date:</b><span id="soap-field-session-date">—</span></div>
                                 <div class="soap-meta-row"><b>Session Time:</b><span id="soap-field-session-time">—</span></div>
@@ -1239,13 +1454,13 @@
                                 <div class="soap-si-cell"><b>Code:</b> —</div>
                               </div>
                               <div class="soap-block-head" style="margin:7px 10px 0;">Subjective</div>
-                              <div class="soap-block-body" id="soap-field-subjective">—</div>
+                              <textarea class="soap-block-body" id="soap-field-subjective" rows="6" spellcheck="true" placeholder="—"></textarea>
                               <div class="soap-block-head" style="margin:7px 10px 0;">Objective</div>
-                              <div class="soap-block-body" id="soap-field-objective">—</div>
+                              <textarea class="soap-block-body" id="soap-field-objective" rows="6" spellcheck="true" placeholder="—"></textarea>
                               <div class="soap-block-head" style="margin:7px 10px 0;">Assessment</div>
-                              <div class="soap-block-body" id="soap-field-assessment">—</div>
+                              <textarea class="soap-block-body" id="soap-field-assessment" rows="5" spellcheck="true" placeholder="—"></textarea>
                               <div class="soap-block-head" style="margin:7px 10px 0;">Plan</div>
-                              <div class="soap-block-body" id="soap-field-plan">—</div>
+                              <textarea class="soap-block-body" id="soap-field-plan" rows="6" spellcheck="true" placeholder="—"></textarea>
                               <div class="soap-doc-footer">
                                 <input type="checkbox" checked disabled style="width:10px;height:10px;" aria-hidden="true" />
                                 <span>I declare this information is accurate and complete.</span>
@@ -1261,7 +1476,7 @@
 
               <div class="tab-panel" id="tab-highlight">
                       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;">
-                        <div style="font-size:12px;color:var(--muted);">Best short clip from this visit (no Gemini video needed).</div>
+                        <div style="font-size:12px;color:var(--muted);">Best short clip from this visit.</div>
                         <button class="btn" id="btn-highlight-refresh" style="height:26px;font-size:11px;">Refresh</button>
                       </div>
                       <div id="highlight-empty" style="color:var(--muted);font-size:13px;font-style:italic;">No highlight clip yet.</div>
@@ -1280,25 +1495,41 @@
                           <div class="chart-section-title">Chief Complaint</div>
                           <div class="chief-complaint" id="chief-complaint"></div>
                         </div>
-                        <div class="chart-section">
-                          <div class="chart-section-title">History of Present Illness</div>
-                          <p style="font-size:13px;line-height:1.6;" id="hpi"></p>
-                        </div>
-                        <div class="chart-section">
-                          <div class="chart-section-title">Reported Symptoms</div>
-                          <div class="symptom-grid" id="symptoms-grid"></div>
-                        </div>
-                        <div class="chart-section">
-                          <div class="chart-section-title">Physical Examination</div>
-                          <p style="font-size:13px;line-height:1.6;" id="exam-findings"></p>
-                        </div>
-                        <div class="chart-section">
-                          <div class="chart-section-title">Doctor's Assessment</div>
-                          <p style="font-size:13px;line-height:1.6;font-weight:500;" id="doctor-assessment"></p>
-                        </div>
-                        <div id="notes-section" class="chart-section" style="display:none;">
-                          <div class="chart-section-title">Additional Notes</div>
-                          <div class="notes-box" id="chart-notes"></div>
+                        <div class="chart-bubble-stack" role="group" aria-label="Chart sections">
+                          <div class="chart-bubble">
+                            <div class="chart-bubble-title">HPI</div>
+                            <div class="chart-bubble-body">
+                              <p class="chart-body-text" id="hpi"></p>
+                            </div>
+                          </div>
+
+                          <div class="chart-bubble">
+                            <div class="chart-bubble-title">Symptoms</div>
+                            <div class="chart-bubble-body">
+                              <div class="symptom-grid" id="symptoms-grid"></div>
+                            </div>
+                          </div>
+
+                          <div class="chart-bubble">
+                            <div class="chart-bubble-title">Exam</div>
+                            <div class="chart-bubble-body">
+                              <p class="chart-body-text" id="exam-findings"></p>
+                            </div>
+                          </div>
+
+                          <div class="chart-bubble chart-bubble--assessment">
+                            <div class="chart-bubble-title">Assessment</div>
+                            <div class="chart-bubble-body">
+                              <p class="chart-body-text chart-body-text--strong" id="doctor-assessment"></p>
+                            </div>
+                          </div>
+
+                          <div id="notes-section" class="chart-bubble" style="display:none;">
+                            <div class="chart-bubble-title">Notes</div>
+                            <div class="chart-bubble-body">
+                              <div class="notes-box" id="chart-notes"></div>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1417,6 +1648,7 @@ async function downloadSoapPdf() {
 
 // ─── State ────────────────────────────────────────────────────────────────────
 let currentChart = null;
+let currentSoapJson = null;
 let pollInterval = null;
 let transcriptLines = [];
 let sessionActive = false;
@@ -1544,6 +1776,67 @@ function addTranscriptLine(line) {
   box.scrollTop = box.scrollHeight;
 }
 
+function showSaveToast(msg, ok) {
+  const el = document.getElementById('last-updated');
+  if (!el) return;
+  const prev = el.textContent;
+  el.textContent = msg;
+  el.style.color = ok ? 'var(--teal, #0d9488)' : '#c2410c';
+  setTimeout(() => {
+    el.style.color = '';
+    el.textContent = prev;
+  }, 4500);
+}
+
+function buildSoapFromDom() {
+  if (!currentSoapJson) {
+    alert('No SOAP data loaded yet.');
+    return null;
+  }
+  const base = JSON.parse(JSON.stringify(currentSoapJson));
+  const sp = base.soap || (base.soap = {});
+  sp.subjective = sp.subjective || { hpi: [], ros: { positive: [], negative: [] } };
+  const subjText = document.getElementById('soap-field-subjective').value.trim();
+  sp.subjective.hpi = subjText ? [subjText] : [];
+  sp.subjective.ros = sp.subjective.ros || { positive: [], negative: [] };
+  sp.objective = sp.objective || { vitals: {}, physical_exam: [] };
+  sp.objective.summary = document.getElementById('soap-field-objective').value.trim() || '';
+  sp.assessment = sp.assessment || { problem_list: [] };
+  sp.assessment.summary = document.getElementById('soap-field-assessment').value.trim() || '';
+  sp.plan = sp.plan || { medications: [], follow_up: [], patient_instructions: [] };
+  sp.plan.summary = document.getElementById('soap-field-plan').value.trim() || '';
+  base.patient = base.patient || {};
+  base.patient.name = document.getElementById('soap-field-patient-name-input').value.trim() || null;
+  base.meta = base.meta || {};
+  base.meta.provider = document.getElementById('soap-field-provider-input').value.trim() || null;
+  return base;
+}
+
+async function saveSoapNote() {
+  const soap = buildSoapFromDom();
+  if (!soap) return;
+  const btn = document.getElementById('btn-save-soap');
+  const prev = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+  try {
+    const res = await fetch('/soap/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ soap }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || res.statusText);
+    currentSoapJson = soap;
+    showSaveToast('SOAP saved · ' + new Date().toLocaleTimeString(), true);
+  } catch (e) {
+    console.error(e);
+    alert('Could not save SOAP: ' + (e.message || e));
+    showSaveToast('SOAP save failed', false);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = prev || 'Save SOAP'; }
+  }
+}
+
 // ─── Render chart ─────────────────────────────────────────────────────────────
 function renderChart(chart) {
   currentChart = chart;
@@ -1584,13 +1877,15 @@ function renderChart(chart) {
   if (chart.notes) {
     document.getElementById('notes-section').style.display = 'block';
     document.getElementById('chart-notes').textContent = chart.notes;
+  } else {
+    document.getElementById('notes-section').style.display = 'none';
+    document.getElementById('chart-notes').textContent = '';
   }
 
-  // Symptoms
   const symGrid = document.getElementById('symptoms-grid');
   symGrid.innerHTML = '';
   if (chart.symptomsReported?.length) {
-    chart.symptomsReported.forEach(s => {
+    chart.symptomsReported.forEach((s) => {
       const severityClass = 'severity-' + (s.severity ?? 'not-specified').replace(/ /g, '-');
       symGrid.innerHTML += `
         <div class="symptom-pill">
@@ -1643,7 +1938,6 @@ function renderChart(chart) {
     exList.innerHTML = '<p class="transcript-empty-msg">No key exchanges extracted.</p>';
   }
 
-  // Plan
   const plan = chart.planAndTreatment;
   const planContent = document.getElementById('plan-content');
   const planEmpty = document.getElementById('plan-empty');
@@ -1658,7 +1952,7 @@ function renderChart(chart) {
         <div class="plan-item-label">Medications</div>
         <div class="plan-item-content">
           ${plan.medications?.length
-            ? '<div class="pill-list">' + plan.medications.map(m => `<span class="pill">${escHtml(m)}</span>`).join('') + '</div>'
+            ? '<div class="pill-list">' + plan.medications.map((m) => `<span class="pill">${escHtml(m)}</span>`).join('') + '</div>'
             : '<span style="color:var(--muted)">None prescribed</span>'}
         </div>
       </div>
@@ -1670,16 +1964,19 @@ function renderChart(chart) {
         <div class="plan-item-label">Instructions</div>
         <div class="plan-item-content">
           ${plan.instructions?.length
-            ? '<ul style="padding-left:14px;list-style:disc;">' + plan.instructions.map(i => `<li style="font-size:12.5px;line-height:1.5;">${escHtml(i)}</li>`).join('') + '</ul>'
+            ? '<ul style="padding-left:14px;list-style:disc;">' + plan.instructions.map((i) => `<li style="font-size:12.5px;line-height:1.5;">${escHtml(i)}</li>`).join('') + '</ul>'
             : '<span style="color:var(--muted)">No specific instructions</span>'}
         </div>
       </div>
       ${plan.referrals?.length ? `
       <div class="plan-item" style="grid-column:1/-1">
         <div class="plan-item-label">Referrals</div>
-        <div class="plan-item-content pill-list">${plan.referrals.map(r => `<span class="pill">${escHtml(r)}</span>`).join('')}</div>
+        <div class="plan-item-content pill-list">${plan.referrals.map((r) => `<span class="pill">${escHtml(r)}</span>`).join('')}</div>
       </div>` : ''}
     `;
+  } else {
+    planEmpty.style.display = 'block';
+    planContent.style.display = 'none';
   }
 
   // Flags
@@ -1708,7 +2005,13 @@ function renderChart(chart) {
     });
   }
 
-  if (hasFlags) { flagsEmpty.style.display = 'none'; flagsGrid.style.display = 'flex'; }
+  if (hasFlags) {
+    flagsEmpty.style.display = 'none';
+    flagsGrid.style.display = 'flex';
+  } else {
+    flagsEmpty.style.display = 'block';
+    flagsGrid.style.display = 'none';
+  }
 
   document.getElementById('last-updated').textContent = 'Generated: ' + new Date(chart.generatedAt ?? Date.now()).toLocaleString();
 }
@@ -2193,6 +2496,14 @@ async function loadLatestChart() {
       renderChart(data.chart);
       document.getElementById('status-label').textContent = 'Ready';
       document.getElementById('status-dot').className = 'status-dot';
+    } else {
+      currentChart = null;
+      document.getElementById('chart-empty').style.display = 'flex';
+      document.getElementById('chart-content').style.display = 'none';
+      const pe = document.getElementById('plan-empty');
+      const pc = document.getElementById('plan-content');
+      if (pe) pe.style.display = 'block';
+      if (pc) pc.style.display = 'none';
     }
   } catch (e) { console.warn('Chart load error:', e); }
   loadSoapJson();
@@ -2201,17 +2512,23 @@ async function loadLatestChart() {
 
 function clearSoapPreview() {
   const el = (id) => document.getElementById(id);
-  const ids = [
-    'soap-field-provider', 'soap-field-patient-name', 'soap-field-dob',
-    'soap-field-session-date', 'soap-field-session-time',
-    'soap-field-subjective', 'soap-field-objective', 'soap-field-assessment', 'soap-field-plan',
-  ];
-  ids.forEach((id) => {
-    const n = el(id);
-    if (n) n.textContent = '—';
-  });
   const pr = el('soap-field-practice');
   if (pr) pr.textContent = 'GlanceScribe';
+  const dob = el('soap-field-dob');
+  if (dob) dob.textContent = '—';
+  const sd = el('soap-field-session-date');
+  const st = el('soap-field-session-time');
+  if (sd) sd.textContent = '—';
+  if (st) st.textContent = '—';
+  const prov = el('soap-field-provider-input');
+  if (prov) prov.value = '';
+  const pn = el('soap-field-patient-name-input');
+  if (pn) pn.value = '';
+  ['soap-field-subjective', 'soap-field-objective', 'soap-field-assessment', 'soap-field-plan'].forEach((id) => {
+    const n = el(id);
+    if (n) n.value = '';
+  });
+  currentSoapJson = null;
 }
 
 function formatProblemList(probs) {
@@ -2232,14 +2549,18 @@ function formatProblemList(probs) {
 /** Map server `data/soap.json` into the SOAP Chart tab (optional — tab still shows outline if missing). */
 function renderSoapFromJson(s) {
   if (!s || !s.soap) return;
+  currentSoapJson = s;
   const p = s.patient || {};
   const enc = s.encounter || {};
   const sp = s.soap;
+  const meta = s.meta || {};
 
   const el = (id) => document.getElementById(id);
   el('soap-field-practice').textContent = 'GlanceScribe';
-  el('soap-field-provider').textContent = '—';
-  el('soap-field-patient-name').textContent = p.name || '—';
+  const provIn = el('soap-field-provider-input');
+  if (provIn) provIn.value = meta.provider != null && String(meta.provider).trim() ? String(meta.provider).trim() : '';
+  const patIn = el('soap-field-patient-name-input');
+  if (patIn) patIn.value = p.name != null && String(p.name).trim() ? String(p.name).trim() : '';
   el('soap-field-dob').textContent = '—';
   const now = new Date();
   let sessionWhen = now;
@@ -2251,16 +2572,16 @@ function renderSoapFromJson(s) {
   el('soap-field-session-time').textContent = sessionWhen.toLocaleTimeString();
 
   const subj = sp.subjective;
-  let subText = '—';
+  let subText = '';
   if (subj?.hpi?.length) subText = subj.hpi.join('\n\n');
   const ros = subj?.ros;
   if (ros && (ros.positive?.length || ros.negative?.length)) {
     const rosLines = [];
     if (ros.positive?.length) rosLines.push('ROS — Positive: ' + ros.positive.join(', '));
     if (ros.negative?.length) rosLines.push('ROS — Negative: ' + ros.negative.join(', '));
-    subText = subText === '—' ? rosLines.join('\n') : subText + '\n\n' + rosLines.join('\n');
+    subText = subText ? subText + '\n\n' + rosLines.join('\n') : rosLines.join('\n');
   }
-  el('soap-field-subjective').textContent = subText;
+  el('soap-field-subjective').value = subText;
 
   const obj = sp.objective || {};
   const objChunks = [];
@@ -2271,18 +2592,18 @@ function renderSoapFromJson(s) {
   if (Array.isArray(obj.physical_exam) && obj.physical_exam.length) {
     objChunks.push(obj.physical_exam.join('\n'));
   }
-  el('soap-field-objective').textContent = objChunks.length ? objChunks.join('\n\n') : '—';
+  el('soap-field-objective').value = objChunks.length ? objChunks.join('\n\n') : '';
 
   const asmt = sp.assessment || {};
   const probLine = formatProblemList(asmt.problem_list);
-  let assText = '—';
+  let assText = '';
   if (typeof asmt.summary === 'string' && asmt.summary.trim()) {
     assText = asmt.summary.trim();
     if (probLine !== '—') assText += '\n\nProblems: ' + probLine;
   } else if (probLine !== '—') {
     assText = probLine;
   }
-  el('soap-field-assessment').textContent = assText;
+  el('soap-field-assessment').value = assText;
 
   const pl = sp.plan || {};
   const planChunks = [];
@@ -2292,7 +2613,7 @@ function renderSoapFromJson(s) {
   if (pl.follow_up?.length) sub.push('Follow-up: ' + pl.follow_up.join('; '));
   if (pl.patient_instructions?.length) sub.push(pl.patient_instructions.join('\n'));
   if (sub.length) planChunks.push(sub.join('\n\n'));
-  el('soap-field-plan').textContent = planChunks.length ? planChunks.join('\n\n') : '—';
+  el('soap-field-plan').value = planChunks.length ? planChunks.join('\n\n') : '';
 }
 
 async function loadSoapJson() {
@@ -2301,7 +2622,9 @@ async function loadSoapJson() {
     if (!res.ok) return;
     const soap = await res.json();
     renderSoapFromJson(soap);
-  } catch (_) { /* no soap.json yet */ }
+  } catch (_) {
+    currentSoapJson = null;
+  }
 }
 
 async function loadLatestHighlight() {
@@ -2327,6 +2650,7 @@ function escHtml(s) {
 // ─── Actions ──────────────────────────────────────────────────────────────────
 document.getElementById('btn-refresh').addEventListener('click', loadLatestChart);
 document.getElementById('btn-highlight-refresh')?.addEventListener('click', loadLatestHighlight);
+document.getElementById('btn-save-soap')?.addEventListener('click', () => { void saveSoapNote(); });
 
 document.getElementById('btn-export').addEventListener('click', () => {
   if (!currentChart) { alert('No chart to export yet.'); return; }
