@@ -10,16 +10,16 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --bg: #f3f2f7;
-    --surface: #ffffff;
-    --surface2: #eeedf4;
-    --border: rgba(0,0,0,0.06);
-    --border2: rgba(0,0,0,0.1);
-    --text: #17162b;
-    --muted: #6e6d85;
-    --accent: #5046e5;
-    --accent-light: #ece9ff;
-    --accent2: #7c3aed;
+    --bg: #090e0e;
+    --surface: #0b1414;
+    --surface2: #0e1b1b;
+    --border: rgba(240,240,240,0.07);
+    --border2: rgba(240,240,240,0.12);
+    --text: #f0f0f0;
+    --muted: #4a6060;
+    --accent: #0d9488;
+    --accent-light: rgba(13,148,136,0.14);
+    --accent2: #0d9488;
     --red: #dc2626;
     --red-light: #fff0f0;
     --green: #059669;
@@ -31,6 +31,13 @@
     --shadow-sm: 0 1px 2px rgba(0,0,0,0.04), 0 1px 4px rgba(0,0,0,0.06);
     --shadow-md: 0 4px 16px rgba(0,0,0,0.07);
     --radius: 14px;
+    --glow: rgba(13,148,136,0.40);
+    --glow-strong: rgba(13,148,136,0.70);
+    --clickable-bg: #0b1414;
+    --clickable-fg: #f0f0f0;
+    --clickable-muted: #4a6060;
+    --clickable-grad-a: rgba(13,148,136,0.95);
+    --clickable-grad-b: rgba(34,199,184,0.85);
   }
 
   body {
@@ -39,6 +46,45 @@
     font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
     -webkit-font-smoothing: antialiased;
     min-height: 100vh;
+  }
+
+  /* Clickable effect (teal version of the Uiverse hover style) */
+  button, a, .tab { -webkit-tap-highlight-color: transparent; }
+  :is(button, .btn, .tab, a) {
+    transition: all 450ms ease-in-out;
+  }
+  :is(button, .btn, .tab):focus-visible {
+    outline: none;
+    box-shadow:
+      inset 0px 1px 0px 0px rgba(240,240,240,0.10),
+      inset 0px -4px 0px 0px rgba(0,0,0,0.28),
+      0px 0px 0px 4px rgba(13,148,136,0.18),
+      0px 0px 44px 0px var(--glow);
+  }
+  :is(button, .btn, .tab):hover {
+    background: linear-gradient(0deg, var(--clickable-grad-a), var(--clickable-grad-b));
+    border-color: rgba(240,240,240,0.18);
+    box-shadow:
+      inset 0px 1px 0px 0px rgba(240,240,240,0.16),
+      inset 0px -4px 0px 0px rgba(0,0,0,0.24),
+      0px 0px 0px 4px rgba(13,148,136,0.18),
+      0px 0px 78px 0px var(--glow-strong);
+    transform: translateY(-2px);
+    color: #fff;
+  }
+  :is(button, .btn, .tab):active {
+    transform: translateY(0px);
+    box-shadow:
+      inset 0px 1px 0px 0px rgba(240,240,240,0.10),
+      inset 0px -3px 0px 0px rgba(0,0,0,0.28),
+      0px 0px 0px 4px rgba(13,148,136,0.14),
+      0px 0px 26px 0px rgba(13,148,136,0.35);
+  }
+
+  /* Links: glow without changing layout */
+  a:hover, a:focus-visible {
+    box-shadow: 0px 0px 38px 0px rgba(13,148,136,0.25);
+    border-radius: 10px;
   }
 
   /* ─── Header ─────────────────────────────────────────────────────────────── */
@@ -63,8 +109,12 @@
     background: var(--accent);
     border-radius: 9px;
     display: flex; align-items: center; justify-content: center;
-    font-size: 17px; color: white;
+    color: white;
   }
+  .gs-mark { width: 22px; height: 22px; display: block; }
+  .gs-mark .gs-mark-pencil-body { fill: #f4c430; }
+  .gs-mark .gs-mark-pencil-cap { fill: #e8a8bd; }
+  .gs-mark .gs-mark-ekg { fill: none; stroke: #ef4444; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
   .logo-text { font-size: 17px; font-weight: 700; letter-spacing: -0.5px; }
   .logo-text span { color: var(--accent); }
@@ -104,7 +154,7 @@
     background: var(--surface);
     border: 1px solid var(--border2);
     border-radius: var(--radius);
-    box-shadow: var(--shadow-sm);
+    box-shadow: 0 6px 18px rgba(0,0,0,0.35);
     overflow: hidden;
   }
 
@@ -173,7 +223,7 @@
   }
 
   .tab:hover { color: var(--text); }
-  .tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 700; text-shadow: 0 0 12px rgba(13,148,136,0.35); }
 
   .tab-panel { display: none; padding: 18px 16px; }
   .tab-panel.active { display: block; }
@@ -307,7 +357,7 @@
   /* 3D Body tab */
   #body-3d-container {
     width: 100%;
-    height: 520px;
+    height: 240px;
     border-radius: 12px;
     overflow: hidden;
     background: linear-gradient(180deg, #0f0e1a 0%, #1a1830 100%);
@@ -390,13 +440,13 @@
     border: 1px solid var(--border2); background: var(--surface);
     color: var(--text); font-size: 12px; font-weight: 500;
     cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
-    transition: all 0.15s; font-family: inherit;
+    transition: all 450ms ease-in-out; font-family: inherit;
   }
 
   .btn:hover { background: var(--surface2); }
   .btn:active { transform: scale(0.98); }
   .btn-primary { background: var(--accent); color: white; border-color: var(--accent); }
-  .btn-primary:hover { background: var(--accent2); border-color: var(--accent2); }
+  .btn-primary:hover { background: var(--accent2); border-color: var(--accent2); box-shadow: 0 0 22px var(--glow-strong); }
 
   @media (max-width: 900px) {
     .layout { grid-template-columns: 1fr; }
@@ -547,7 +597,13 @@
 <!-- Header -->
 <header class="header">
   <div class="logo">
-    <div class="logo-icon">👓</div>
+    <div class="logo-icon" aria-hidden="true">
+      <svg class="gs-mark" viewBox="0 0 24 24" role="img" focusable="false" aria-label="GlanceScribe logo">
+        <path class="gs-mark-pencil-body" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z"/>
+        <path class="gs-mark-pencil-cap" d="M20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+        <path class="gs-mark-ekg" d="M7.5 18.2h2.4l1 1.7 1.4-3.1 1.8 4.5 1-1.7H22.5"/>
+      </svg>
+    </div>
     <div class="logo-text">Glance<span>Scribe</span><span class="logo-sub">Dashboard</span></div>
   </div>
   <div class="header-right">
@@ -569,13 +625,22 @@
   <aside class="sidebar">
     <div class="card">
       <div class="card-header">
-        <span class="card-title">📹 Live Preview</span>
-        <span style="font-size:10px;color:var(--muted)" id="video-status">Waiting…</span>
+        <span class="card-title">🫀 3D Body</span>
+        <span style="font-size:10px;color:var(--muted)">Drag to rotate</span>
       </div>
-      <div class="video-container">
-        <div class="video-placeholder" id="video-placeholder">
-          <div class="video-placeholder-icon">📱</div>
-          <p>Start recording on iPhone</p>
+      <div class="card-body" style="padding:12px 12px 10px;">
+        <div id="body-parts-empty" style="color:var(--muted);font-size:12px;font-style:italic;margin-bottom:10px;">No body parts identified yet.</div>
+        <div class="body-parts-grid" id="body-parts-grid" style="display:none;margin-bottom:10px;"></div>
+        <div id="body-3d-wrapper" style="display:none;">
+          <div id="body-3d-container">
+            <div class="body3d-legend" id="body3d-legend" style="display:none;">
+              <div class="body3d-legend-title">Affected Areas</div>
+              <div id="body3d-legend-items"></div>
+            </div>
+            <div class="body3d-instructions">
+              Drag to rotate · Scroll to zoom
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -637,7 +702,6 @@
         <div class="tab" data-tab="highlight">🎞 Highlight</div>
         <div class="tab" data-tab="chart">📋 Chart</div>
         <div class="tab" data-tab="conversation">💬 Conversation</div>
-        <div class="tab" data-tab="body">🫀 3D Body</div>
         <div class="tab" data-tab="plan">💊 Plan</div>
         <div class="tab" data-tab="flags">⚑ Flags</div>
         <div class="tab" data-tab="json">{ } JSON</div>
@@ -683,23 +747,6 @@
       <div class="tab-panel" id="tab-conversation">
         <div class="exchange-list" id="exchange-list">
           <p class="transcript-empty-msg">No conversation recorded yet.</p>
-        </div>
-      </div>
-
-      <!-- 3D Body tab -->
-      <div class="tab-panel" id="tab-body">
-        <div id="body-parts-empty" style="color:var(--muted);font-size:13px;font-style:italic;">No body parts identified yet.</div>
-        <div class="body-parts-grid" id="body-parts-grid" style="display:none;margin-bottom:14px;"></div>
-        <div id="body-3d-wrapper" style="display:none;">
-          <div id="body-3d-container">
-            <div class="body3d-legend" id="body3d-legend" style="display:none;">
-              <div class="body3d-legend-title">Affected Areas</div>
-              <div id="body3d-legend-items"></div>
-            </div>
-            <div class="body3d-instructions">
-              Drag to rotate · Scroll to zoom
-            </div>
-          </div>
         </div>
       </div>
 
@@ -818,8 +865,8 @@ document.querySelectorAll('.tab').forEach(tab => {
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
     tab.classList.add('active');
     document.getElementById('tab-' + name).classList.add('active');
-    // Resize 3D scene if switching to body tab
-    if (name === 'body' && bodyScene) bodyScene.resize();
+    // Resize 3D scene if needed (body now lives in sidebar)
+    if (bodyScene) bodyScene.resize();
   });
 });
 

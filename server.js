@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import https from 'node:https';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import multer from 'multer';
 import { exec } from 'node:child_process';
@@ -106,13 +107,17 @@ function makeSessionId() {
 }
 
 function getLocalIP() {
-  const interfaces = os.networkInterfaces();
-  for (const name of Object.keys(interfaces)) {
-    for (const iface of interfaces[name]) {
-      if (iface.family === 'IPv4' && !iface.internal) {
-        return iface.address;
+  try {
+    const interfaces = os.networkInterfaces();
+    for (const name of Object.keys(interfaces)) {
+      for (const iface of interfaces[name]) {
+        if (iface.family === 'IPv4' && !iface.internal) {
+          return iface.address;
+        }
       }
     }
+  } catch {
+    // Some restricted environments can block interface enumeration.
   }
   return 'localhost';
 }
@@ -754,14 +759,51 @@ app.use((err, req, res, next) => {
 
 const localIP = getLocalIP();
 
-app.listen(port, '0.0.0.0', () => {
-  console.log('\n╔══════════════════════════════════════════════╗');
-  console.log('║         GlanceScribe Medical System           ║');
-  console.log('╠══════════════════════════════════════════════╣');
-  console.log(`║  Local:     http://localhost:${port}              ║`);
-  console.log(`║  iPhone:    http://${localIP}:${port}       ║`);
-  console.log(`║  Dashboard: http://localhost:${port}/dashboard.html ║`);
-  console.log('╠══════════════════════════════════════════════╣');
-  console.log(`║  Videos:    ${VIDEO_DIR}`);
-  console.log('╚══════════════════════════════════════════════╝\n');
-});
+const useHttps =
+  String(process.env.HTTPS || process.env.USE_HTTPS || '').toLowerCase() === 'true' ||
+  String(process.env.HTTPS || process.env.USE_HTTPS || '') === '1';
+
+async function startServer() {
+  if (useHttps) {
+    const keyPath = process.env.HTTPS_KEY_FILE || path.join(process.cwd(), 'certs', 'localhost-key.pem');
+    const certPath = process.env.HTTPS_CERT_FILE || path.join(process.cwd(), 'certs', 'localhost.pem');
+
+    if (!existsSync(keyPath) || !existsSync(certPath)) {
+      console.warn('\n⚠️  HTTPS enabled but cert files missing.');
+      console.warn(`   Expected key:  ${keyPath}`);
+      console.warn(`   Expected cert: ${certPath}`);
+      console.warn('   Falling back to HTTP.\n');
+    } else {
+      const [key, cert] = await Promise.all([
+        fs.readFile(keyPath),
+        fs.readFile(certPath),
+      ]);
+      https.createServer({ key, cert }, app).listen(port, '0.0.0.0', () => {
+        console.log('\n╔══════════════════════════════════════════════╗');
+        console.log('║         GlanceScribe Medical System           ║');
+        console.log('╠══════════════════════════════════════════════╣');
+        console.log(`║  Local:     https://localhost:${port}             ║`);
+        console.log(`║  iPhone:    https://${localIP}:${port}      ║`);
+        console.log(`║  Dashboard: https://localhost:${port}/dashboard.html║`);
+        console.log('╠══════════════════════════════════════════════╣');
+        console.log(`║  Videos:    ${VIDEO_DIR}`);
+        console.log('╚══════════════════════════════════════════════╝\n');
+      });
+      return;
+    }
+  }
+
+  app.listen(port, '0.0.0.0', () => {
+    console.log('\n╔══════════════════════════════════════════════╗');
+    console.log('║         GlanceScribe Medical System           ║');
+    console.log('╠══════════════════════════════════════════════╣');
+    console.log(`║  Local:     http://localhost:${port}              ║`);
+    console.log(`║  iPhone:    http://${localIP}:${port}       ║`);
+    console.log(`║  Dashboard: http://localhost:${port}/dashboard.html ║`);
+    console.log('╠══════════════════════════════════════════════╣');
+    console.log(`║  Videos:    ${VIDEO_DIR}`);
+    console.log('╚══════════════════════════════════════════════╝\n');
+  });
+}
+
+startServer();

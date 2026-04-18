@@ -8,17 +8,21 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --bg: #0a0a0f;
-    --surface: #13131a;
-    --surface2: #1c1c26;
-    --border: rgba(255,255,255,0.08);
-    --text: #f0f0f8;
-    --muted: #8888a8;
-    --accent: #6c63ff;
-    --accent2: #a78bfa;
+    --bg: #090e0e;
+    --surface: #0b1414;
+    --surface2: #0e1b1b;
+    --border: rgba(240,240,240,0.10);
+    --text: #f0f0f0;
+    --muted: #4a6060;
+    --accent: #0d9488;
+    --accent2: #22c7b8;
     --red: #ff4d6d;
     --green: #34d399;
     --amber: #fbbf24;
+    --glow: rgba(13,148,136,0.45);
+    --glow-strong: rgba(13,148,136,0.75);
+    --clickable-grad-a: rgba(13,148,136,0.95);
+    --clickable-grad-b: rgba(34,199,184,0.85);
   }
 
   html, body {
@@ -38,6 +42,18 @@
     height: 100dvh;
   }
 
+  /* Clickable effect (teal version of the Uiverse hover style) */
+  button, a, .status-pill, .camera-wrap { -webkit-tap-highlight-color: transparent; }
+  button, a { transition: all 450ms ease-in-out; }
+  button:focus-visible, a:focus-visible {
+    outline: none;
+    box-shadow:
+      inset 0px 1px 0px 0px rgba(240,240,240,0.10),
+      inset 0px -4px 0px 0px rgba(0,0,0,0.28),
+      0px 0px 0px 4px rgba(13,148,136,0.18),
+      0px 0px 44px 0px var(--glow);
+  }
+
   /* Header */
   .header {
     display: flex;
@@ -45,6 +61,12 @@
     justify-content: space-between;
     padding: 8px 0;
     flex-shrink: 0;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
   }
 
   .logo {
@@ -61,8 +83,12 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 16px;
+    color: #fff;
   }
+  .gs-mark { width: 20px; height: 20px; display: block; }
+  .gs-mark .gs-mark-pencil-body { fill: #f4c430; }
+  .gs-mark .gs-mark-pencil-cap { fill: #e8a8bd; }
+  .gs-mark .gs-mark-ekg { fill: none; stroke: #ef4444; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
   .logo-text {
     font-size: 17px;
@@ -85,6 +111,34 @@
     color: var(--muted);
     transition: all 0.3s;
   }
+
+  .dash-btn {
+    height: 30px;
+    padding: 0 12px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    text-decoration: none;
+    transition: all 450ms ease-in-out;
+    white-space: nowrap;
+  }
+  .dash-btn:hover, .dash-btn:focus-visible {
+    background: linear-gradient(0deg, rgba(13,148,136,0.28), rgba(34,199,184,0.18));
+    box-shadow:
+      inset 0px 1px 0px 0px rgba(240,240,240,0.12),
+      inset 0px -4px 0px 0px rgba(0,0,0,0.28),
+      0px 0px 0px 4px rgba(13,148,136,0.14),
+      0px 0px 44px 0px var(--glow);
+    transform: translateY(-2px);
+  }
+  .dash-btn:active { transform: translateY(0px); }
 
   .status-pill.recording {
     background: rgba(255, 77, 109, 0.1);
@@ -160,7 +214,7 @@
     position: absolute;
     width: 20px;
     height: 20px;
-    border-color: rgba(108, 99, 255, 0.6);
+    border-color: rgba(13, 148, 136, 0.65);
     border-style: solid;
   }
   .corner.tl { top: 12px; left: 12px; border-width: 2px 0 0 2px; border-radius: 4px 0 0 0; }
@@ -263,10 +317,22 @@
 
   .btn-main:active { transform: scale(0.97); }
 
+  .btn-main:hover, .btn-main:focus-visible {
+    background: linear-gradient(0deg, var(--clickable-grad-a), var(--clickable-grad-b));
+    box-shadow:
+      inset 0px 1px 0px 0px rgba(240,240,240,0.16),
+      inset 0px -4px 0px 0px rgba(0,0,0,0.24),
+      0px 0px 0px 4px rgba(13,148,136,0.18),
+      0px 0px 78px 0px var(--glow-strong);
+    transform: translateY(-2px);
+  }
+  .btn-main:active { transform: translateY(0px) scale(0.98); }
+
   .btn-start {
     background: var(--accent);
     color: #fff;
   }
+  .btn-start:hover, .btn-start:focus-visible { box-shadow: 0 0 78px var(--glow-strong); }
 
   .btn-stop {
     background: var(--red);
@@ -289,6 +355,17 @@
     transition: all 0.2s;
   }
 
+  .btn-icon:hover, .btn-icon:focus-visible {
+    background: linear-gradient(0deg, rgba(13,148,136,0.22), rgba(34,199,184,0.16));
+    border-color: rgba(240,240,240,0.18);
+    box-shadow:
+      inset 0px 1px 0px 0px rgba(240,240,240,0.12),
+      inset 0px -4px 0px 0px rgba(0,0,0,0.28),
+      0px 0px 0px 4px rgba(13,148,136,0.14),
+      0px 0px 44px 0px var(--glow);
+    transform: translateY(-2px);
+    color: var(--text);
+  }
   .btn-icon:active { transform: scale(0.95); background: var(--surface2); }
 
   /* Stats bar */
@@ -388,12 +465,21 @@
 <!-- Header -->
 <div class="header">
   <div class="logo">
-    <div class="logo-icon">👓</div>
+    <div class="logo-icon" aria-hidden="true">
+      <svg class="gs-mark" viewBox="0 0 24 24" role="img" focusable="false" aria-label="GlanceScribe logo">
+        <path class="gs-mark-pencil-body" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z"/>
+        <path class="gs-mark-pencil-cap" d="M20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+        <path class="gs-mark-ekg" d="M7.5 18.2h2.4l1 1.7 1.4-3.1 1.8 4.5 1-1.7H22.5"/>
+      </svg>
+    </div>
     <div class="logo-text">Glance<span>Scribe</span></div>
   </div>
-  <div class="status-pill" id="status-pill">
-    <div class="dot"></div>
-    <span id="status-text">Tap Start</span>
+  <div class="header-right">
+    <div class="status-pill" id="status-pill">
+      <div class="dot"></div>
+      <span id="status-text">Tap Start</span>
+    </div>
+    <a class="dash-btn" href="/dashboard.html">📊 Dashboard</a>
   </div>
 </div>
 
@@ -518,6 +604,7 @@ async function initCamera() {
     preview.style.transform = 'scaleX(-1)';
     initBodyDetection().catch(() => {});
   } catch (err) {
+    state.mediaStream = null;
     showToast('⚠️ Camera access denied: ' + err.message);
     console.error(err);
   }
@@ -999,9 +1086,14 @@ function startVideoRecorder() {
 
 // ─── START ────────────────────────────────────────────────────────────────────
 async function startRecording() {
+  // iOS Safari often requires a user gesture to grant camera permission.
+  // This function runs from the Start button click, so it’s a safe place to request it.
   if (!state.mediaStream) {
-    showToast('⚠️ Camera not ready yet');
-    return;
+    await initCamera();
+    if (!state.mediaStream) {
+      showToast('⚠️ Camera not ready — tap Allow Camera/Microphone when prompted');
+      return;
+    }
   }
 
   // Tell server to start session
@@ -1117,6 +1209,8 @@ btnMain.addEventListener('click', async () => {
   if (state.recording) {
     await stopRecording();
   } else {
+    // Ensure camera permission is requested from a user gesture on iOS.
+    if (!state.mediaStream) await initCamera();
     await startRecording();
   }
 });
@@ -1139,9 +1233,8 @@ requestWakeLock();
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 async function init() {
-  await initCamera();
   statusPill.className = 'status-pill ready';
-  statusText.textContent = 'Ready';
+  statusText.textContent = 'Tap Start';
 }
 
 init();
