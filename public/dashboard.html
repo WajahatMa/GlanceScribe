@@ -403,6 +403,143 @@
     .plan-grid { grid-template-columns: 1fr; }
     .participant-row { grid-template-columns: 1fr; }
   }
+
+  /* SOAP Chart tab — layout adapted from ui-components ResultsPage (friend’s SOAP outline) */
+  .soap-tab-hint {
+    font-size: 11px; color: var(--muted); margin: -6px 0 10px; line-height: 1.4;
+  }
+  .soap-tab-hint code { font-family: 'JetBrains Mono', monospace; font-size: 10px; background: var(--surface2); padding: 1px 5px; border-radius: 4px; }
+
+  .soap-embed-wrap {
+    margin: 0 -16px -18px;
+    border-radius: 0 0 var(--radius) var(--radius);
+    overflow: auto;
+    max-height: min(85vh, 1000px);
+    background: #0b0f17;
+    color: #cbd5e1;
+    font-size: 11px;
+  }
+  .soap-embed-top {
+    background: #0f1520;
+    border-bottom: 1px solid #1e2a3a;
+    padding: 10px 16px;
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+  }
+  .soap-embed-brand { font-weight: 700; font-size: 12px; letter-spacing: -0.02em; color: #e2e8f0; }
+  .soap-embed-brand span { color: #a78bfa; }
+  .soap-embed-tags { display: flex; gap: 8px; flex-wrap: wrap; }
+  .soap-tag-green {
+    font-size: 10px; font-family: 'JetBrains Mono', monospace;
+    padding: 3px 10px; border-radius: 20px;
+    background: #0a1a0a; color: #4ade80; border: 1px solid #166534;
+  }
+  .soap-tag-gray {
+    font-size: 10px; font-family: 'JetBrains Mono', monospace;
+    padding: 3px 10px; border-radius: 20px;
+    background: #1e2a3a; color: #64748b; border: 1px solid #1e2a3a;
+  }
+  .soap-embed-patientbar {
+    background: #0d1825;
+    border-bottom: 1px solid #1e2a3a;
+    padding: 8px 16px;
+    display: flex; flex-wrap: wrap; gap: 16px;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #64748b;
+  }
+  .soap-embed-patientbar strong { color: #94a3b8; font-weight: 500; }
+  .soap-embed-doc-area {
+    padding: 16px 20px 28px;
+    max-width: 720px;
+    margin: 0 auto;
+  }
+  .soap-doc-paper {
+    background: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    color: #1a1a1a;
+  }
+  .soap-doc-title-wrap {
+    text-align: center;
+    padding: 10px 14px 6px;
+    border-bottom: 1px solid #ccc;
+  }
+  .soap-doc-title {
+    font-size: 21px; font-weight: 700; color: #111;
+    letter-spacing: 0.5px; font-family: 'Times New Roman', Times, serif;
+  }
+  .soap-meta-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    padding: 7px 12px;
+    gap: 2px 12px;
+    border-bottom: 1px solid #ccc;
+  }
+  .soap-meta-row {
+    font-size: 11.5px; color: #222;
+    display: flex; gap: 4px; align-items: baseline;
+    font-family: 'Times New Roman', Times, serif;
+  }
+  .soap-meta-row b { font-weight: 700; white-space: nowrap; }
+  .soap-meta-row span {
+    border-bottom: 0.5px solid #aaa; flex: 1;
+    min-height: 17px;
+  }
+  .soap-si-head {
+    background: #d0d0d0;
+    padding: 2px 8px;
+    font-size: 11.5px; font-weight: 700; color: #111;
+    margin: 4px 10px 0;
+    font-family: 'Times New Roman', Times, serif;
+  }
+  .soap-si-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    margin: 0 10px;
+    border: 0.5px solid #bbb;
+    border-top: none;
+  }
+  .soap-si-cell {
+    padding: 4px 6px;
+    font-size: 11px; color: #222;
+    border-right: 0.5px solid #bbb;
+    font-family: 'Times New Roman', Times, serif;
+  }
+  .soap-si-cell:last-child { border-right: none; }
+  .soap-block-head {
+    background: #d0d0d0;
+    padding: 3px 7px;
+    font-size: 12px; font-weight: 700; color: #111;
+    margin-top: 7px;
+    border: 0.5px solid #bbb;
+    font-family: 'Times New Roman', Times, serif;
+  }
+  .soap-block-body {
+    border: 0.5px solid #bbb;
+    border-top: none;
+    min-height: 96px;
+    padding: 10px 12px;
+    font-size: 14px; color: #1a1a1a;
+    line-height: 1.6;
+    font-family: 'Times New Roman', Times, serif;
+    margin: 0 10px;
+    white-space: pre-wrap;
+  }
+  .soap-doc-footer {
+    margin: 6px 10px 4px;
+    font-size: 10.5px; color: #222;
+    display: flex; align-items: center; gap: 5px;
+    font-family: 'Times New Roman', Times, serif;
+  }
+  .soap-sig-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin: 3px 10px 10px;
+    padding-top: 4px;
+    border-top: 0.5px solid #bbb;
+    font-size: 10.5px;
+    font-family: 'Times New Roman', Times, serif;
+  }
+  .soap-sig-line { border-bottom: 0.5px solid #999; height: 18px; margin-top: 2px; }
 </style>
 </head>
 <body>
@@ -501,6 +638,7 @@
         <div class="tab" data-tab="body">🫀 3D Body</div>
         <div class="tab" data-tab="plan">💊 Plan</div>
         <div class="tab" data-tab="flags">⚑ Flags</div>
+        <div class="tab" data-tab="soap">📄 SOAP Chart</div>
         <div class="tab" data-tab="json">{ } JSON</div>
       </div>
 
@@ -576,6 +714,63 @@
       <div class="tab-panel" id="tab-flags">
         <div id="flags-empty" style="color:var(--muted);font-size:13px;font-style:italic;">No flags identified.</div>
         <div class="flags-grid" id="flags-grid" style="display:none;"></div>
+      </div>
+
+      <!-- SOAP Chart tab (friend’s paper-style outline; wire to soap.json later) -->
+      <div class="tab-panel" id="tab-soap">
+        <p class="soap-tab-hint">Preview of the SOAP note layout. Live fields from <code>data/soap.json</code> can be mapped here next.</p>
+        <div class="soap-embed-wrap">
+          <div class="soap-embed-top">
+            <div class="soap-embed-brand">Glance<span>Scribe</span></div>
+            <div class="soap-embed-tags">
+              <span class="soap-tag-green">Note complete</span>
+              <span class="soap-tag-gray">Encounter</span>
+            </div>
+          </div>
+          <div class="soap-embed-patientbar">
+            <span><strong>Patient</strong> <span id="soap-preview-patient">—</span></span>
+            <span><strong>CC</strong> <span id="soap-preview-cc">—</span></span>
+            <span><strong>Date</strong> <span id="soap-preview-date">—</span></span>
+            <span><strong>Provider</strong> <span id="soap-preview-provider">—</span></span>
+          </div>
+          <div class="soap-embed-doc-area">
+              <div class="soap-doc-paper">
+                <div class="soap-doc-title-wrap">
+                  <h2 class="soap-doc-title">— SOAP Note —</h2>
+                </div>
+                <div class="soap-meta-grid">
+                  <div class="soap-meta-row"><b>Practice:</b><span id="soap-field-practice">—</span></div>
+                  <div class="soap-meta-row"><b>Provider:</b><span id="soap-field-provider">—</span></div>
+                  <div class="soap-meta-row"><b>Patient:</b><span id="soap-field-patient-name">—</span></div>
+                  <div class="soap-meta-row"><b>DOB:</b><span id="soap-field-dob">—</span></div>
+                  <div class="soap-meta-row"><b>Session Date:</b><span id="soap-field-session-date">—</span></div>
+                  <div class="soap-meta-row"><b>Session Time:</b><span id="soap-field-session-time">—</span></div>
+                </div>
+                <div class="soap-si-head">Session Information</div>
+                <div class="soap-si-row">
+                  <div class="soap-si-cell"><b>Duration:</b> —</div>
+                  <div class="soap-si-cell"><b>Type:</b> —</div>
+                  <div class="soap-si-cell"><b>Code:</b> —</div>
+                </div>
+                <div class="soap-block-head" style="margin:7px 10px 0;">Subjective</div>
+                <div class="soap-block-body" id="soap-field-subjective">—</div>
+                <div class="soap-block-head" style="margin:7px 10px 0;">Objective</div>
+                <div class="soap-block-body" id="soap-field-objective">—</div>
+                <div class="soap-block-head" style="margin:7px 10px 0;">Assessment</div>
+                <div class="soap-block-body" id="soap-field-assessment">—</div>
+                <div class="soap-block-head" style="margin:7px 10px 0;">Plan</div>
+                <div class="soap-block-body" id="soap-field-plan">—</div>
+                <div class="soap-doc-footer">
+                  <input type="checkbox" checked disabled style="width:10px;height:10px;" aria-hidden="true" />
+                  <span>I declare this information is accurate and complete.</span>
+                </div>
+                <div class="soap-sig-row">
+                  <div><b style="display:block;margin-bottom:2px;">Provider's Signature:</b><div class="soap-sig-line"></div></div>
+                  <div><b style="display:block;margin-bottom:2px;">Date:</b><div class="soap-sig-line"></div></div>
+                </div>
+              </div>
+          </div>
+        </div>
       </div>
 
       <!-- JSON tab -->
@@ -665,6 +860,9 @@ function initSSE() {
         renderChart(msg.chart);
         document.getElementById('status-dot').className = 'status-dot';
         document.getElementById('status-label').textContent = 'Ready';
+        loadSoapJson();
+      } else if (msg.type === 'soap_ready') {
+        loadSoapJson();
       } else if (msg.type === 'video_chunk') {
         document.getElementById('stat-chunks').textContent = msg.chunks;
       }
@@ -1199,6 +1397,60 @@ async function loadLatestChart() {
       document.getElementById('status-dot').className = 'status-dot';
     }
   } catch (e) { console.warn('Chart load error:', e); }
+  loadSoapJson();
+}
+
+/** Map server `data/soap.json` into the SOAP Chart tab (optional — tab still shows outline if missing). */
+function renderSoapFromJson(s) {
+  if (!s || !s.soap) return;
+  const p = s.patient || {};
+  const enc = s.encounter || {};
+  const sp = s.soap;
+
+  const patientLine = [p.name, p.age != null ? String(p.age) : null, p.sex].filter(Boolean).join(', ') || '—';
+  const el = (id) => document.getElementById(id);
+  el('soap-preview-patient').textContent = patientLine;
+  el('soap-preview-cc').textContent = enc.chief_complaint || '—';
+  el('soap-preview-date').textContent = enc.date_time || new Date().toLocaleString();
+  el('soap-preview-provider').textContent = '—';
+
+  el('soap-field-practice').textContent = 'GlanceScribe';
+  el('soap-field-provider').textContent = '—';
+  el('soap-field-patient-name').textContent = p.name || '—';
+  el('soap-field-dob').textContent = '—';
+  const now = new Date();
+  el('soap-field-session-date').textContent = now.toLocaleDateString();
+  el('soap-field-session-time').textContent = now.toLocaleTimeString();
+
+  const subj = sp.subjective;
+  let subText = '—';
+  if (subj?.hpi?.length) subText = subj.hpi.join('\n\n');
+  el('soap-field-subjective').textContent = subText;
+
+  const obj = sp.objective || {};
+  const objParts = [];
+  if (obj.vitals && Object.keys(obj.vitals).length) objParts.push(JSON.stringify(obj.vitals, null, 0));
+  if (Array.isArray(obj.physical_exam) && obj.physical_exam.length) objParts.push(...obj.physical_exam);
+  el('soap-field-objective').textContent = objParts.length ? objParts.join('\n') : '—';
+
+  const probs = sp.assessment?.problem_list;
+  el('soap-field-assessment').textContent = Array.isArray(probs) && probs.length ? probs.join('; ') : '—';
+
+  const pl = sp.plan || {};
+  const planParts = [];
+  if (pl.medications?.length) planParts.push('Medications: ' + pl.medications.join('; '));
+  if (pl.follow_up?.length) planParts.push('Follow-up: ' + pl.follow_up.join('; '));
+  if (pl.patient_instructions?.length) planParts.push(pl.patient_instructions.join('\n'));
+  el('soap-field-plan').textContent = planParts.length ? planParts.join('\n\n') : '—';
+}
+
+async function loadSoapJson() {
+  try {
+    const res = await fetch('/soap');
+    if (!res.ok) return;
+    const soap = await res.json();
+    renderSoapFromJson(soap);
+  } catch (_) { /* no soap.json yet */ }
 }
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
@@ -1223,6 +1475,7 @@ document.getElementById('btn-export').addEventListener('click', () => {
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 loadLatestChart();
+loadSoapJson();
 pollInterval = setInterval(pollStatus, 3000);
 initSSE();
 </script>
