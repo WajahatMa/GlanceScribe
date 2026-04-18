@@ -7,3 +7,8 @@ node_modules/
 .DS_Store
 videos/
 *.tar.gz
+
+*.webm
+*.mp4
+*.mov
+*.log

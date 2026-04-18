@@ -1,10 +1,8 @@
 import 'dotenv/config';
 import express from 'express';
 import fs from 'node:fs/promises';
-import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { GoogleAIFileManager, FileState } from '@google/generative-ai/server';
 import multer from 'multer';
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -22,6 +20,13 @@ const VIDEO_DIR = process.env.VIDEO_DIR
 
 await fs.mkdir(VIDEO_DIR, { recursive: true });
 await fs.mkdir(path.join(process.cwd(), 'data'), { recursive: true });
+
+// Serve recorded videos (and highlights) to the dashboard.
+app.use('/videos', express.static(VIDEO_DIR, {
+  setHeaders(res) {
+    res.setHeader('Cache-Control', 'no-store');
+  },
+}));
 
 // ─── Multer for video chunk uploads ──────────────────────────────────────────
 const upload = multer({
@@ -156,6 +161,7 @@ app.post('/session/start', async (req, res, next) => {
       startTime: Date.now(),
       videoChunks: [],
       transcript: [],
+      focusEvents: [],
     };
 
     const file = path.join(process.cwd(), 'data', 'transcript.txt');
@@ -166,6 +172,37 @@ app.post('/session/start', async (req, res, next) => {
 
     console.log(`\n🟢 Session started: ${id}`);
     res.json({ ok: true, sessionId: id });
+  } catch (e) { next(e); }
+});
+
+// Focus events from client-side ML overlay (MoveNet)
+app.post('/focus', async (req, res, next) => {
+  try {
+    const { sessionId, events } = req.body ?? {};
+    if (!currentSession || !sessionId || sessionId !== currentSession.id) {
+      res.status(409).json({ error: 'No active session or sessionId mismatch' });
+      return;
+    }
+    if (!Array.isArray(events)) {
+      res.status(400).json({ error: 'Expected { sessionId, events: [] }' });
+      return;
+    }
+    for (const e of events) {
+      if (!e || typeof e !== 'object') continue;
+      const t_ms = Number(e.t_ms);
+      const label = typeof e.label === 'string' ? e.label : null;
+      const keypoint = typeof e.keypoint === 'string' ? e.keypoint : null;
+      const rank = Number(e.rank);
+      if (!Number.isFinite(t_ms) || t_ms < 0) continue;
+      if (!label || !keypoint) continue;
+      currentSession.focusEvents.push({
+        t_ms: Math.round(t_ms),
+        label,
+        keypoint,
+        rank: Number.isFinite(rank) ? rank : null,
+      });
+    }
+    res.json({ ok: true, total: currentSession.focusEvents.length });
   } catch (e) { next(e); }
 });
 
@@ -225,7 +262,7 @@ app.post('/session/stop', async (req, res, next) => {
     const session = currentSession;
     currentSession = null;
 
-    const { id, transcript, videoChunks } = session;
+    const { id, transcript, videoChunks, focusEvents } = session;
     const duration = Math.round((Date.now() - session.startTime) / 1000);
 
     console.log(`\n🔴 Session stopping: ${id}`);
@@ -242,7 +279,8 @@ app.post('/session/stop', async (req, res, next) => {
       await fs.writeFile(rawPath, allChunks);
       console.log(`   💾 Raw video: ${rawPath} (${(allChunks.length / 1024 / 1024).toFixed(1)} MB)`);
 
-      if (ffmpegAvailable) {
+      const shouldCompress = process.env.VIDEO_COMPRESS !== '0';
+      if (ffmpegAvailable && shouldCompress) {
         const compressedPath = path.join(VIDEO_DIR, `${id}.mp4`);
         try {
           await execAsync(
@@ -266,9 +304,10 @@ app.post('/session/stop', async (req, res, next) => {
     const transcriptPath = path.join(process.cwd(), 'data', `${id}_transcript.txt`);
     await fs.writeFile(transcriptPath, transcriptText, 'utf8');
 
-    // ── Run Gemini analysis ────────────────────────────────────────────────────
+    // ── Run Gemini analysis (transcript-only) ─────────────────────────────────
     let patientChart = null;
     let analysisError = null;
+    let highlightFilename = null;
 
     try {
       patientChart = await runGeminiAnalysis(transcriptText, videoPath, id);
@@ -280,6 +319,34 @@ app.post('/session/stop', async (req, res, next) => {
       console.error('   ❌ Gemini analysis failed:', gErr.message);
       analysisError = gErr.message;
       broadcastSSE({ type: 'chart_error', sessionId: id, error: analysisError });
+    }
+
+    // ── Highlight clip (no Gemini video) ──────────────────────────────────────
+    try {
+      const bodyKeyword = normalizeBodyProblem(patientChart?.bodyPartProblem);
+      const chosen = chooseHighlightEvent(focusEvents, bodyKeyword);
+      if (videoPath && chosen?.e) {
+        const t0 = Number(chosen.e.t_ms) || 0;
+        const t1 = Number(chosen.next?.t_ms);
+        const segMs = Number.isFinite(t1) ? Math.max(0, t1 - t0) : 0;
+
+        // Clip to cover the focused segment plus a little context.
+        const startMs = Math.max(0, t0 - 1500);
+        const durationMs = Math.max(8_000, Math.min(20_000, segMs + 4500));
+
+        highlightFilename = await writeHighlightClip({
+          sourcePath: videoPath,
+          sessionId: id,
+          startMs,
+          durationMs,
+        });
+        if (highlightFilename) {
+          console.log(`   🎞 Highlight saved: ${path.join(VIDEO_DIR, highlightFilename)}`);
+          broadcastSSE({ type: 'highlight_ready', sessionId: id, filename: highlightFilename });
+        }
+      }
+    } catch (hErr) {
+      console.warn('   ⚠️ Highlight clip failed:', hErr.message);
     }
 
     try {
@@ -298,6 +365,7 @@ app.post('/session/stop', async (req, res, next) => {
       sessionId: id,
       duration,
       videoPath: videoPath ? path.basename(videoPath) : null,
+      highlight: highlightFilename,
       transcriptLines: transcript.length,
       patientChart,
       analysisError,
@@ -318,6 +386,26 @@ app.get('/chart/latest', async (req, res, next) => {
     }
     const latest = await fs.readFile(path.join(dataDir, charts[0]), 'utf8');
     res.json({ chart: JSON.parse(latest), filename: charts[0] });
+  } catch (e) { next(e); }
+});
+
+// Get latest highlight clip filename (served under /videos/:filename)
+app.get('/highlight/latest', async (req, res, next) => {
+  try {
+    const { sessionId } = req.query ?? {};
+    const files = await fs.readdir(VIDEO_DIR).catch(() => []);
+    const clips = files.filter((f) => {
+      if (!f.endsWith('_highlight.mp4')) return false;
+      if (typeof sessionId === 'string' && sessionId.trim()) {
+        return f.startsWith(sessionId.trim() + '_');
+      }
+      return true;
+    }).sort().reverse();
+    if (!clips.length) {
+      res.json({ filename: null });
+      return;
+    }
+    res.json({ filename: clips[0] });
   } catch (e) { next(e); }
 });
 
@@ -354,6 +442,72 @@ function broadcastSSE(data) {
   sseClients.forEach(client => {
     try { client.res.write(msg); } catch {}
   });
+}
+
+function normalizeBodyProblem(s) {
+  if (!s) return null;
+  const t = String(s).toLowerCase();
+  if (/(cold|cough|flu|fever|uri|throat|sore throat|sinus|infection)/.test(t)) return null;
+  // prefer a core anatomy keyword we also label in MoveNet overlay
+  const keys = ['head', 'neck', 'shoulder', 'chest', 'abdomen', 'hip', 'arm', 'hand', 'wrist', 'leg', 'knee', 'ankle', 'foot', 'back'];
+  for (const k of keys) {
+    if (t.includes(k)) return k;
+  }
+  return t.trim() || null;
+}
+
+function chooseHighlightEvent(focusEvents, targetKeyword) {
+  if (!Array.isArray(focusEvents) || !focusEvents.length) return null;
+  const keyword = targetKeyword ? String(targetKeyword).toLowerCase() : null;
+
+  let bestIdx = -1;
+  let bestScore = -Infinity;
+
+  for (let i = 0; i < focusEvents.length; i++) {
+    const e = focusEvents[i];
+    const labelRaw = String(e?.label ?? '');
+    const label = labelRaw.toLowerCase();
+    const ok = keyword ? label.includes(keyword) : true;
+    if (!ok) continue;
+
+    // Prefer non-head moments when keyword is unknown (intro chat often centers head).
+    const headPenalty = !keyword && label.includes('head') ? 0.35 : 0;
+    const rank = Number.isFinite(e.rank) ? e.rank : 0;
+
+    // Prefer longer segments when possible: duration until next focus change.
+    const t0 = Number(e.t_ms) || 0;
+    const t1 = Number(focusEvents[i + 1]?.t_ms);
+    const segMs = Number.isFinite(t1) ? Math.max(0, t1 - t0) : 0;
+    const segBonus = Math.min(0.25, segMs / 20_000); // up to +0.25 for ~20s+
+
+    const score = rank + segBonus - headPenalty;
+    if (score > bestScore) {
+      bestScore = score;
+      bestIdx = i;
+    }
+  }
+
+  if (bestIdx === -1) return null;
+  const e = focusEvents[bestIdx];
+  const next = focusEvents[bestIdx + 1] ?? null;
+  return { e, next };
+}
+
+async function writeHighlightClip({ sourcePath, sessionId, startMs, durationMs }) {
+  if (!ffmpegAvailable) return null;
+  if (!sourcePath) return null;
+  const startSec = Math.max(0, startMs / 1000);
+  const durSec = Math.max(4, Math.min(20, (durationMs ?? 14_000) / 1000));
+  const outName = `${sessionId}_highlight.mp4`;
+  const outPath = path.join(VIDEO_DIR, outName);
+
+  // Re-encode a short clip for compatibility (fast enough for ~seconds).
+  await execAsync(
+    `ffmpeg -ss ${startSec.toFixed(3)} -i "${sourcePath}" -t ${durSec.toFixed(3)} ` +
+    `-c:v libx264 -preset veryfast -crf 26 -c:a aac -b:a 96k -movflags +faststart "${outPath}" -y`
+  );
+
+  return outName;
 }
 
 // Session status
@@ -507,7 +661,6 @@ app.get('/soap', async (req, res, next) => {
 async function runGeminiAnalysis(transcriptText, videoPath, sessionId) {
   const apiKey = requireEnv('GEMINI_API_KEY');
   const genAI = new GoogleGenerativeAI(apiKey);
-  const fileManager = new GoogleAIFileManager(apiKey);
 
   const chartModel =
     process.env.GEMINI_CHART_MODEL || process.env.GEMINI_SOAP_MODEL || 'gemini-2.5-flash';
@@ -520,18 +673,19 @@ async function runGeminiAnalysis(transcriptText, videoPath, sessionId) {
 
   console.log('   🤖 Running Gemini analysis...');
 
-  const prompt = `You are a medical documentation AI. You will be given a transcript of a doctor-patient consultation and potentially a video of the examination.
+  const prompt = `You are a medical documentation AI. You will be given a transcript of a doctor-patient consultation.
 
 Your job is to:
 1. Identify who is the DOCTOR and who is the PATIENT based on context clues
 2. Extract ALL medically relevant information
-3. Identify any body parts mentioned or examined (use the video to confirm visual examinations)
+3. Identify any body parts mentioned or examined
 4. Structure everything into a clean patient chart JSON
 
 Return ONLY valid JSON with this exact structure (no markdown, no preamble):
 {
   "sessionId": "${sessionId}",
   "generatedAt": "${new Date().toISOString()}",
+  "bodyPartProblem": "string|null (single most likely primary body part involved in the visit, e.g. \"knee\", \"left shoulder\"; null for systemic/URI-only visits)",
   "participants": {
     "doctor": {
       "identified": true or false,
@@ -583,39 +737,6 @@ ${transcriptText}
 Remember: Return ONLY the JSON object. No explanation, no markdown code blocks.`;
 
   const parts = [{ text: prompt }];
-
-  if (videoPath && existsSync(videoPath)) {
-    try {
-      console.log(`   📤 Uploading video to Gemini File API: ${path.basename(videoPath)}`);
-      const uploadResult = await fileManager.uploadFile(videoPath, {
-        mimeType: videoPath.endsWith('.mp4') ? 'video/mp4' : 'video/webm',
-        displayName: `Session ${sessionId}`,
-      });
-
-      let file = await fileManager.getFile(uploadResult.file.name);
-      process.stdout.write('   ⏳ Processing video');
-      
-      while (file.state === FileState.PROCESSING) {
-        process.stdout.write('.');
-        await new Promise((resolve) => setTimeout(resolve, 3000));
-        file = await fileManager.getFile(uploadResult.file.name);
-      }
-
-      if (file.state === FileState.FAILED) {
-        throw new Error('Video processing failed in Gemini File API');
-      }
-
-      console.log('\n   ✅ Video processed and ready');
-      parts.push({
-        fileData: {
-          mimeType: file.mimeType,
-          fileUri: file.uri,
-        },
-      });
-    } catch (vErr) {
-      console.warn('   ⚠️ Video upload/processing failed, falling back to transcript only:', vErr.message);
-    }
-  }
 
   const result = await model.generateContent(parts);
   const text = result.response.text().trim();

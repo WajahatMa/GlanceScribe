@@ -116,25 +116,43 @@
   .camera-wrap {
     flex: 1;
     min-height: 0;
-    background: var(--surface);
+    background: #000; /* letterbox background when using object-fit: contain */
     border-radius: 16px;
     border: 1px solid var(--border);
     overflow: hidden;
     position: relative;
+    /* Keep a consistent, phone-like viewport without extreme cropping */
+    max-height: 52vh;
+    aspect-ratio: 3 / 4;
   }
 
   #preview {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    /* Show full frame (no crop). This may letterbox but avoids "zoomed in" look. */
+    object-fit: contain;
     display: block;
-    transform: scaleX(-1); /* mirror for selfie-style */
+    /* Un-mirror camera preview (some browsers show front-cam mirrored by default). */
+    transform: scaleX(-1);
+  }
+
+  /* Real-time body part overlay (MoveNet) */
+  #pose-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 3;
+    /* Keep labels readable; we mirror coordinates in JS when needed */
+    transform: none;
   }
 
   .camera-overlay {
     position: absolute;
     inset: 0;
     pointer-events: none;
+    z-index: 4;
   }
 
   /* Corner brackets */
@@ -382,6 +400,7 @@
 <!-- Camera -->
 <div class="camera-wrap">
   <video id="preview" autoplay playsinline muted></video>
+  <canvas id="pose-canvas"></canvas>
   <div class="camera-overlay">
     <div class="corner tl"></div>
     <div class="corner tr"></div>
@@ -433,6 +452,10 @@
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
+<!-- Optional: client-side ML pose (MoveNet) for real-time body-part keypoints -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.3/dist/pose-detection.min.js"></script>
+
 <script>
 // ─── State ────────────────────────────────────────────────────────────────────
 const state = {
@@ -441,6 +464,9 @@ const state = {
   mediaRecorder: null,
   scribeSocket: null,
   audioContext: null,
+  scribeStopping: false,
+  lastPartial: '',
+  lastCommittedAt: 0,
   timerInterval: null,
   statsInterval: null,
   startTime: null,
@@ -466,6 +492,7 @@ const loadingOverlay = document.getElementById('loading-overlay');
 const loadingTitle = document.getElementById('loading-title');
 const loadingSub = document.getElementById('loading-sub');
 const toast = document.getElementById('toast');
+const poseCanvas = document.getElementById('pose-canvas');
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
 let toastTimer;
@@ -487,6 +514,9 @@ async function initCamera() {
       audio: { echoCancellation: false, noiseSuppression: false, sampleRate: 16000 },
     });
     preview.srcObject = state.mediaStream;
+    // Force an un-mirrored preview (counteracts default mirrored camera behavior).
+    preview.style.transform = 'scaleX(-1)';
+    initBodyDetection().catch(() => {});
   } catch (err) {
     showToast('⚠️ Camera access denied: ' + err.message);
     console.error(err);
@@ -497,10 +527,194 @@ async function initCamera() {
 btnFlip.addEventListener('click', async () => {
   if (state.recording) { showToast('Cannot flip during recording'); return; }
   state.facingMode = state.facingMode === 'environment' ? 'user' : 'environment';
-  preview.style.transform = state.facingMode === 'user' ? 'scaleX(-1)' : 'scaleX(1)';
   await initCamera();
   showToast(state.facingMode === 'environment' ? '📷 Back camera' : '🤳 Front camera');
 });
+
+// ─── Real-time body-part detection (MoveNet via TF.js) ────────────────────────
+const BODY_PARTS = {
+  nose: 'Head',
+  left_elbow: 'Left Elbow',
+  right_elbow: 'Right Elbow',
+  left_wrist: 'Left Hand',
+  right_wrist: 'Right Hand',
+  left_knee: 'Left Knee',
+  right_knee: 'Right Knee',
+  left_ankle: 'Left Foot',
+  right_ankle: 'Right Foot',
+};
+
+let poseDetector = null;
+let poseLoopToken = 0;
+let lastFocusLabel = null;
+let focusLog = [];
+let focusFlushTimer = null;
+
+function drawBodyParts(ctx, keypoints, w, h, map) {
+  ctx.clearRect(0, 0, w, h);
+  // Pick a single "focused" keypoint each frame.
+  // Heuristic: most centered among labeled points, with a small bias for hands/knees/ankles
+  // so we don't lock onto the head at the start of the visit.
+  let focusedName = null;
+  let focusedScore = -1;
+  const cx = w / 2;
+  const cy = h / 2;
+  const maxD = Math.max(1, Math.hypot(cx, cy));
+  for (const kp of keypoints ?? []) {
+    if (!BODY_PARTS[kp.name]) continue;
+    const s = kp.score ?? 0;
+    if (s < 0.3) continue;
+    const kx = map?.flipX ? (map.videoW - kp.x) : kp.x;
+    const ky = kp.y;
+    const px = map ? (kx * map.scale + map.offX) : kx;
+    const py = map ? (ky * map.scale + map.offY) : ky;
+    const dx = (px ?? 0) - cx;
+    const dy = (py ?? 0) - cy;
+    const centered = 1 - Math.min(1, Math.hypot(dx, dy) / maxD); // 0..1
+    const partBoost =
+      kp.name === 'left_wrist' || kp.name === 'right_wrist'
+        ? 0.18
+        : (kp.name === 'left_knee' || kp.name === 'right_knee' || kp.name === 'left_ankle' || kp.name === 'right_ankle')
+          ? 0.10
+          : 0;
+    const conf = Math.min(1, s);
+    const rank = centered + partBoost + conf * 0.08;
+    if (rank > focusedScore) {
+      focusedScore = rank;
+      focusedName = kp.name;
+    }
+  }
+
+  // Capture focus changes during an active recording session.
+  if (state.recording && focusedName) {
+    const focusedLabel = BODY_PARTS[focusedName] ?? null;
+    if (focusedLabel && focusedLabel !== lastFocusLabel) {
+      lastFocusLabel = focusedLabel;
+      const tMs = state.startTime ? (Date.now() - state.startTime) : 0;
+      focusLog.push({
+        t_ms: Math.max(0, Math.round(tMs)),
+        keypoint: focusedName,
+        label: focusedLabel,
+        rank: Math.round(focusedScore * 1000) / 1000,
+      });
+    }
+  }
+
+  for (const kp of keypoints ?? []) {
+    const label = BODY_PARTS[kp.name];
+    if (!label) continue;
+    if ((kp.score ?? 0) < 0.3) continue;
+
+    const kx = map?.flipX ? (map.videoW - kp.x) : kp.x;
+    const ky = kp.y;
+    const x = map ? (kx * map.scale + map.offX) : kx;
+    const y = map ? (ky * map.scale + map.offY) : ky;
+    const r = 18;
+
+    const isFocused = kp.name === focusedName;
+    ctx.strokeStyle = isFocused ? '#ff3b30' : '#00FF88';
+    ctx.lineWidth = isFocused ? 3 : 2;
+    ctx.strokeRect(x - r, y - r, r * 2, r * 2);
+
+    // Label pill
+    ctx.font = 'bold 12px system-ui, -apple-system, sans-serif';
+    const pad = 6;
+    const label2 = isFocused ? `${label} (focus)` : label;
+    const tw = ctx.measureText(label2).width;
+    const bw = tw + pad * 2;
+    const bh = 18;
+    const bx = Math.max(4, Math.min(w - bw - 4, x - r));
+    const by = Math.max(4, y - r - bh - 4);
+
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillRect(bx, by, bw, bh);
+    ctx.fillStyle = isFocused ? '#ff3b30' : '#00FF88';
+    ctx.fillText(label2, bx + pad, by + 13);
+  }
+}
+
+async function flushFocusLog() {
+  if (!state.recording) return;
+  if (!state.sessionId) return;
+  if (!focusLog.length) return;
+  const batch = focusLog;
+  focusLog = [];
+  try {
+    await fetch('/focus', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId: state.sessionId, events: batch }),
+    });
+  } catch {
+    // If it fails (offline, server restart), keep logging locally.
+    focusLog = batch.concat(focusLog);
+  }
+}
+
+async function initBodyDetection() {
+  // Don’t crash the app if TF.js fails to load (offline, blocked CDN, etc.)
+  if (!window.poseDetection || !window.tf) return;
+  if (!preview) return;
+
+  if (!poseDetector) {
+    try {
+      poseDetector = await poseDetection.createDetector(
+        poseDetection.SupportedModels.MoveNet,
+        { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING }
+      );
+    } catch (e) {
+      console.warn('MoveNet init failed:', e);
+      return;
+    }
+  }
+
+  const token = ++poseLoopToken;
+  const canvas = poseCanvas;
+  const ctx = canvas.getContext('2d');
+
+  async function tick() {
+    if (token !== poseLoopToken) return;
+    if (preview.readyState < 2 || preview.videoWidth === 0 || preview.videoHeight === 0) {
+      requestAnimationFrame(tick);
+      return;
+    }
+
+    // With object-fit: contain, the displayed video is letterboxed.
+    // Draw in CSS pixels and map keypoint coords from video pixels -> displayed rect.
+    const rect = canvas.getBoundingClientRect();
+    const cw = Math.max(1, Math.round(rect.width));
+    const ch = Math.max(1, Math.round(rect.height));
+    if (canvas.width !== cw) canvas.width = cw;
+    if (canvas.height !== ch) canvas.height = ch;
+
+    const vw = preview.videoWidth;
+    const vh = preview.videoHeight;
+    const scale = Math.min(cw / vw, ch / vh);
+    const drawW = vw * scale;
+    const drawH = vh * scale;
+    const offX = (cw - drawW) / 2;
+    const offY = (ch - drawH) / 2;
+    // Preview is flipped with CSS scaleX(-1), so mirror keypoint X to match.
+    const map = { scale, offX, offY, flipX: true, videoW: vw };
+
+    try {
+      const poses = await poseDetector.estimatePoses(preview, { maxPoses: 1, flipHorizontal: false });
+      if (poses?.[0]?.keypoints) {
+        drawBodyParts(ctx, poses[0].keypoints, canvas.width, canvas.height, map);
+      } else {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    } catch (e) {
+      // If it fails (e.g. WebGL context loss), just stop drawing silently.
+      console.warn('MoveNet estimate failed:', e);
+      return;
+    }
+
+    requestAnimationFrame(tick);
+  }
+
+  requestAnimationFrame(tick);
+}
 
 // ─── Timer ────────────────────────────────────────────────────────────────────
 function formatTime(ms) {
@@ -575,6 +789,8 @@ async function startScribe() {
     const ws = new WebSocket(`wss://api.elevenlabs.io/v1/speech-to-text/realtime?${qs.toString()}`);
     state.scribeSocket = ws;
     state.scribeAudioStarted = false;
+    state.scribeStopping = false;
+    state.lastPartial = '';
 
     const sessionWait = setTimeout(() => {
       if (!state.scribeAudioStarted) {
@@ -623,9 +839,12 @@ async function startScribe() {
           const line = msg.text.trim();
 
           if (msg.message_type === 'partial_transcript') {
+            state.lastPartial = line;
             updateTranscriptPreview(line, true);
           } else {
             state.transcriptLines.push(line);
+            state.lastCommittedAt = Date.now();
+            state.lastPartial = '';
             updateTranscriptPreview(line, false);
             statLines.textContent = state.transcriptLines.length;
 
@@ -675,6 +894,7 @@ function startAudioPump() {
   processor.connect(ctx.destination);
 
   processor.onaudioprocess = (e) => {
+    if (state.scribeStopping) return;
     if (state.scribeSocket?.readyState !== WebSocket.OPEN) return;
     const floatIn = e.inputBuffer.getChannelData(0);
     const float16k = resampleFloat32Linear(floatIn, inSr, SCRIBE_PCM_RATE);
@@ -688,6 +908,36 @@ function startAudioPump() {
       sample_rate: SCRIBE_PCM_RATE,
     }));
   };
+}
+
+async function stopScribeGracefully() {
+  const ws = state.scribeSocket;
+  if (!ws) return;
+  state.scribeStopping = true;
+
+  // If there's an in-flight partial, give VAD/commit a moment to flush it.
+  const waitForCommit = () => new Promise((resolve) => {
+    const start = Date.now();
+    const tick = () => {
+      const noPartial = !state.lastPartial;
+      const committedRecently = Date.now() - (state.lastCommittedAt || 0) < 1200;
+      if (noPartial && committedRecently) return resolve();
+      if (Date.now() - start > 1800) return resolve(); // hard timeout
+      setTimeout(tick, 120);
+    };
+    tick();
+  });
+
+  try {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ message_type: 'commit' }));
+    }
+  } catch {}
+
+  await waitForCommit();
+
+  try { ws.close(); } catch {}
+  state.scribeSocket = null;
 }
 
 // ─── Transcript preview ───────────────────────────────────────────────────────
@@ -763,6 +1013,10 @@ async function startRecording() {
   state.startTime = Date.now();
   state.transcriptLines = [];
   state.videoChunks = 0;
+  lastFocusLabel = null;
+  focusLog = [];
+  clearInterval(focusFlushTimer);
+  focusFlushTimer = setInterval(() => { flushFocusLog(); }, 3000);
 
   // UI
   btnMain.className = 'btn-main btn-stop';
@@ -794,6 +1048,9 @@ async function stopRecording() {
 
   // Stop timer
   clearInterval(state.timerInterval);
+  clearInterval(focusFlushTimer);
+  focusFlushTimer = null;
+  await flushFocusLog();
 
   // Stop MediaRecorder (flush final chunk)
   if (state.mediaRecorder && state.mediaRecorder.state !== 'inactive') {
@@ -803,17 +1060,8 @@ async function stopRecording() {
     });
   }
 
-  // Flush last segment then close Scribe (helps if commit_strategy were manual or last VAD segment pending)
-  if (state.scribeSocket) {
-    try {
-      if (state.scribeSocket.readyState === WebSocket.OPEN) {
-        state.scribeSocket.send(JSON.stringify({ message_type: 'commit' }));
-        await new Promise((r) => setTimeout(r, 400));
-      }
-    } catch (_) {}
-    state.scribeSocket.close();
-    state.scribeSocket = null;
-  }
+  // Flush last segment then close Scribe (avoid cutting off final words)
+  await stopScribeGracefully();
 
   // Close audio context
   if (state.audioContext) {

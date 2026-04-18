@@ -634,6 +634,7 @@
 
       <div class="tabs">
         <div class="tab active" data-tab="soap">📄 SOAP Chart</div>
+        <div class="tab" data-tab="highlight">🎞 Highlight</div>
         <div class="tab" data-tab="chart">📋 Chart</div>
         <div class="tab" data-tab="conversation">💬 Conversation</div>
         <div class="tab" data-tab="body">🫀 3D Body</div>
@@ -773,6 +774,16 @@
         </div>
       </div>
 
+      <!-- Highlight tab (auto-clipped video around focused body part) -->
+      <div class="tab-panel" id="tab-highlight">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;">
+          <div style="font-size:12px;color:var(--muted);">Best short clip from this visit (no Gemini video needed).</div>
+          <button class="btn" id="btn-highlight-refresh" style="height:26px;font-size:11px;">↻ Refresh</button>
+        </div>
+        <div id="highlight-empty" style="color:var(--muted);font-size:13px;font-style:italic;">No highlight clip yet.</div>
+        <video id="highlight-video" controls playsinline style="display:none;width:100%;max-height:520px;border-radius:12px;border:1px solid var(--border2);background:#000;"></video>
+      </div>
+
       <!-- JSON tab -->
       <div class="tab-panel" id="tab-json">
         <pre id="json-view">No data yet.</pre>
@@ -797,6 +808,7 @@ let pollInterval = null;
 let transcriptLines = [];
 let sessionActive = false;
 let bodyScene = null;
+let currentSessionId = null;
 
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
 document.querySelectorAll('.tab').forEach(tab => {
@@ -823,6 +835,7 @@ async function pollStatus() {
 
     if (data.active) {
       sessionActive = true;
+      currentSessionId = data.sessionId ?? currentSessionId;
       dot.className = 'status-dot recording';
       label.textContent = 'Recording';
       badge.textContent = data.sessionId ?? 'Active';
@@ -843,6 +856,30 @@ async function pollStatus() {
   }
 }
 
+function clearHighlightPreview() {
+  const empty = document.getElementById('highlight-empty');
+  const vid = document.getElementById('highlight-video');
+  if (vid) {
+    try { vid.pause?.(); } catch {}
+    vid.removeAttribute('src');
+    try { vid.load?.(); } catch {}
+    vid.style.display = 'none';
+  }
+  if (empty) empty.style.display = 'block';
+}
+
+function setHighlightFilename(filename) {
+  const empty = document.getElementById('highlight-empty');
+  const vid = document.getElementById('highlight-video');
+  if (!filename || !vid) {
+    clearHighlightPreview();
+    return;
+  }
+  vid.src = '/videos/' + filename + '?t=' + Date.now();
+  vid.style.display = 'block';
+  if (empty) empty.style.display = 'none';
+}
+
 // ─── SSE for live transcript ──────────────────────────────────────────────────
 function initSSE() {
   const sse = new EventSource('/transcript/live');
@@ -856,13 +893,16 @@ function initSSE() {
         document.getElementById('status-label').textContent = 'Recording';
         document.getElementById('session-badge').textContent = msg.sessionId;
         sessionActive = true;
+        currentSessionId = msg.sessionId ?? currentSessionId;
         clearSoapPreview();
+        clearHighlightPreview();
         const hint = document.querySelector('.soap-tab-hint');
         if (hint) {
           hint.textContent = 'SOAP note updates when the visit ends and AI finishes the note.';
         }
       } else if (msg.type === 'session_stop') {
         clearSoapPreview();
+        clearHighlightPreview();
         const hint = document.querySelector('.soap-tab-hint');
         if (hint) {
           hint.dataset.prev = hint.textContent;
@@ -872,6 +912,7 @@ function initSSE() {
         renderChart(msg.chart);
         document.getElementById('status-dot').className = 'status-dot';
         document.getElementById('status-label').textContent = 'Ready';
+        currentSessionId = msg.sessionId ?? currentSessionId;
         // Do not load SOAP here — chart is saved before soap.json is written; that would show stale data.
       } else if (msg.type === 'soap_ready') {
         const hint = document.querySelector('.soap-tab-hint');
@@ -880,6 +921,11 @@ function initSSE() {
           delete hint.dataset.prev;
         }
         loadSoapJson();
+        loadLatestHighlight();
+      } else if (msg.type === 'highlight_ready') {
+        if (!currentSessionId || msg.sessionId === currentSessionId) {
+          setHighlightFilename(msg.filename);
+        }
       } else if (msg.type === 'soap_error') {
         const hint = document.querySelector('.soap-tab-hint');
         if (hint && hint.dataset.prev) {
@@ -922,6 +968,9 @@ function renderChart(chart) {
   document.getElementById('chart-empty').style.display = 'none';
   document.getElementById('chart-content').style.display = 'block';
   document.getElementById('chart-session-id').textContent = chart.sessionId ?? '';
+
+  // If present, we can reuse this later for highlight targeting / display.
+  // (No UI binding yet—kept minimal.)
 
   const qBadge = document.getElementById('transcript-quality');
   if (chart.transcriptQuality) {
@@ -1424,6 +1473,7 @@ async function loadLatestChart() {
     }
   } catch (e) { console.warn('Chart load error:', e); }
   loadSoapJson();
+  loadLatestHighlight();
 }
 
 function clearSoapPreview() {
@@ -1538,6 +1588,20 @@ async function loadSoapJson() {
   } catch (_) { /* no soap.json yet */ }
 }
 
+async function loadLatestHighlight() {
+  try {
+    const qs = currentSessionId
+      ? ('?sessionId=' + encodeURIComponent(currentSessionId) + '&t=' + Date.now())
+      : ('?t=' + Date.now());
+    const res = await fetch('/highlight/latest' + qs, { cache: 'no-store' });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data?.filename) return;
+    setHighlightFilename(data.filename);
+  } catch (_) {
+    // ignore
+  }
+}
+
 // ─── Helper ───────────────────────────────────────────────────────────────────
 function escHtml(s) {
   if (!s) return '';
@@ -1546,6 +1610,7 @@ function escHtml(s) {
 
 // ─── Actions ──────────────────────────────────────────────────────────────────
 document.getElementById('btn-refresh').addEventListener('click', loadLatestChart);
+document.getElementById('btn-highlight-refresh')?.addEventListener('click', loadLatestHighlight);
 
 document.getElementById('btn-export').addEventListener('click', () => {
   if (!currentChart) { alert('No chart to export yet.'); return; }
@@ -1561,6 +1626,7 @@ document.getElementById('btn-export').addEventListener('click', () => {
 // ─── Init ─────────────────────────────────────────────────────────────────────
 loadLatestChart();
 loadSoapJson();
+loadLatestHighlight();
 pollInterval = setInterval(pollStatus, 3000);
 initSSE();
 </script>
