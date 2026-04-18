@@ -38,6 +38,51 @@ let sseClients = [];
 app.use(express.json({ limit: '2mb' }));
 app.use(express.static(path.join(process.cwd(), 'public')));
 
+// Medical assistant chat (Tavily search — same idea as chatbox branch)
+app.post('/api/search', async (req, res, next) => {
+  try {
+    const { query } = req.body ?? {};
+    if (typeof query !== 'string' || !query.trim()) {
+      res.status(400).json({ error: 'No query' });
+      return;
+    }
+    const apiKey = process.env.TAVILY_API_KEY;
+    if (!apiKey) {
+      res.status(503).json({
+        error: 'TAVILY_API_KEY not set — add it to .env to enable the medical chat search.',
+      });
+      return;
+    }
+    const tavilyRes = await fetch('https://api.tavily.com/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        api_key: apiKey,
+        query: `${query.trim()} medical clinical`,
+        search_depth: 'advanced',
+        include_answer: true,
+        include_domains: [
+          'pubmed.ncbi.nlm.nih.gov', 'mayoclinic.org', 'medscape.com', 'nih.gov', 'who.int',
+          'uptodate.com', 'nejm.org', 'bmj.com', 'cdc.gov',
+        ],
+        max_results: 3,
+      }),
+    });
+    const rawText = await tavilyRes.text();
+    if (!tavilyRes.ok) {
+      res.status(502).json({ error: 'Tavily request failed', details: rawText.slice(0, 300) });
+      return;
+    }
+    const data = JSON.parse(rawText);
+    res.json({
+      answer: data.answer ?? '',
+      sources: data.results?.map((r) => ({ title: r.title, url: r.url })) ?? [],
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function requireEnv(name) {
   const v = process.env[name];

@@ -52,6 +52,7 @@ npm start
 - **iPhone + MacBook on same Wi-Fi**
 - **ElevenLabs API key** (Scribe v2)
 - **Google Gemini API key**
+- **Tavily API key** (optional — for the floating medical chat search)
 
 ---
 
@@ -64,8 +65,9 @@ GlanceScribe/
 ├── .env                ← API keys (create from .env.example)
 ├── .env.example
 ├── public/
-│   ├── index.html      ← iPhone recording page
-│   └── dashboard.html  ← MacBook dashboard + 3D body model
+│   ├── index.html       ← iPhone recording page
+│   ├── dashboard.html   ← MacBook dashboard + 3D body + SOAP tab
+│   └── chat-widget.js   ← floating medical chat (needs TAVILY_API_KEY)
 ├── data/               ← transcripts + chart JSONs (auto-created)
 └── videos/             ← MP4 recordings (auto-created)
 ```
@@ -81,6 +83,7 @@ GlanceScribe/
 | 🫀 3D Body | Interactive Three.js body model — drag to rotate, scroll to zoom, affected areas glow |
 | 💊 Plan | Medications, follow-up, instructions, referrals |
 | ⚑ Flags | Urgent items, unclear points, follow-up required |
+| 📄 SOAP Chart | Paper-style SOAP note (from `data/soap.json`) |
 | { } JSON | Raw Gemini output for debugging/export |
 
 ---

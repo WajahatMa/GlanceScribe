@@ -3,3 +3,7 @@
 /data
 
 node_modules/
+
+.DS_Store
+videos/
+*.tar.gz
