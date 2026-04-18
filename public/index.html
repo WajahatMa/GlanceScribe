@@ -557,41 +557,89 @@
     transform: translateX(-50%) translateY(0);
   }
 
-  /* Loading overlay */
+  /* Loading overlay — scribing animation on dark scrim */
   .loading-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(10,10,15,0.85);
+    background: rgba(10,10,15,0.88);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 16px;
+    gap: 22px;
     z-index: 200;
     display: none;
-    backdrop-filter: blur(6px);
+    backdrop-filter: blur(8px);
   }
 
   .loading-overlay.visible { display: flex; }
 
-  .spinner {
-    width: 40px;
-    height: 40px;
-    border: 3px solid var(--border);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
+  .scribe-loader {
+    width: min(92vw, 300px);
   }
 
-  @keyframes spin { to { transform: rotate(360deg); } }
+  .scribe-paper-inner {
+    position: relative;
+    z-index: 1;
+    min-height: 108px;
+    padding: 8px 0 20px;
+  }
+
+  .scribe-ink-svg {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    height: auto;
+    display: block;
+    overflow: visible;
+  }
+
+  .scribe-ink-path {
+    fill: none;
+    stroke: var(--accent2);
+    stroke-width: 2.35;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    filter: drop-shadow(0 0 8px rgba(34, 199, 184, 0.45));
+    animation: scribe-ink 2.5s ease-in-out infinite alternate;
+  }
+
+  @keyframes scribe-ink {
+    0% { stroke-dashoffset: 1; opacity: 0.45; }
+    12% { opacity: 1; }
+    100% { stroke-dashoffset: 0; opacity: 1; }
+  }
+
+  .scribe-pencil {
+    position: absolute;
+    z-index: 2;
+    left: 0;
+    top: 0;
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.28));
+    transform-origin: 75% 85%;
+    will-change: transform;
+  }
+
+  .scribe-pencil svg {
+    display: block;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .scribe-ink-path { animation: none; stroke-dashoffset: 0; opacity: 0.9; }
+    .scribe-pencil { transform: translate(180px, 56px) rotate(-10deg); }
+  }
 
   .loading-text {
-    font-size: 15px;
-    color: var(--muted);
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--text);
     text-align: center;
+    padding: 0 12px;
+    line-height: 1.4;
   }
-
-  .loading-text strong { color: var(--text); display: block; font-size: 17px; margin-bottom: 4px; }
 </style>
 </head>
 <body>
@@ -667,11 +715,26 @@
 
 <!-- Loading overlay -->
 <div class="loading-overlay" id="loading-overlay">
-  <div class="spinner"></div>
-  <div class="loading-text">
-    <strong id="loading-title">Processing…</strong>
-    <span id="loading-sub">Saving video and running AI analysis</span>
+  <div class="scribe-loader" aria-hidden="true">
+    <div class="scribe-paper-inner">
+      <svg class="scribe-ink-svg" id="scribe-ink-svg" viewBox="0 0 280 100" preserveAspectRatio="xMidYMid meet" focusable="false">
+        <path
+          class="scribe-ink-path"
+          id="scribe-ink-path"
+          pathLength="1"
+          d="M 14 58 C 38 52, 52 68, 78 60 C 98 54, 112 66, 132 56 C 152 46, 168 62, 190 54 C 210 46, 228 58, 252 52 C 262 50, 268 54, 274 52"
+        />
+      </svg>
+      <div class="scribe-pencil" id="scribe-pencil" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="36" height="36" aria-hidden="true">
+          <path fill="#f4c430" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z"/>
+          <path fill="#e8a8bd" d="M20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+          <path fill="none" stroke="#c2410c" stroke-width="1.2" stroke-linecap="round" d="M8 19.5l2.2-2.1"/>
+        </svg>
+      </div>
+    </div>
   </div>
+  <p class="loading-text" role="status" aria-live="polite">Scribing...</p>
 </div>
 
 <!-- Toast -->
@@ -715,10 +778,81 @@ const recBadge = document.getElementById('rec-badge');
 const timerBadge = document.getElementById('timer-badge');
 const transcriptPreview = document.getElementById('transcript-preview');
 const loadingOverlay = document.getElementById('loading-overlay');
-const loadingTitle = document.getElementById('loading-title');
-const loadingSub = document.getElementById('loading-sub');
 const toast = document.getElementById('toast');
 const poseCanvas = document.getElementById('pose-canvas');
+
+// ─── Scribe loader motion (pencil tip follows ink path) ───────────────────────
+const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ?? false;
+const scribeSvg = document.getElementById('scribe-ink-svg');
+const scribePath = document.getElementById('scribe-ink-path');
+const scribePencil = document.getElementById('scribe-pencil');
+let scribeRaf = null;
+let scribeStart = 0;
+
+function stopScribeMotion() {
+  if (scribeRaf) cancelAnimationFrame(scribeRaf);
+  scribeRaf = null;
+}
+
+function startScribeMotion() {
+  if (prefersReducedMotion) return;
+  if (!scribeSvg || !scribePath || !scribePencil) return;
+
+  stopScribeMotion();
+  scribeStart = performance.now();
+
+  const totalLen = scribePath.getTotalLength();
+  const pencilW = 36;
+  const pencilH = 36;
+
+  const tick = (now) => {
+    if (!loadingOverlay.classList.contains('visible')) {
+      stopScribeMotion();
+      return;
+    }
+
+    // Match CSS: 2.5s, alternate (forward then backward)
+    const D = 2500;
+    const t = (now - scribeStart) % (D * 2);
+    const forward = t <= D;
+    const p = (t % D) / D; // 0..1
+    const prog = forward ? p : (1 - p);
+
+    // Convert point to pixels in page space, then to local coords of paper-inner
+    const len = totalLen * prog;
+    const pt = scribePath.getPointAtLength(len);
+    const pt2 = scribePath.getPointAtLength(Math.min(totalLen, len + 0.75));
+
+    const ctm = scribeSvg.getScreenCTM();
+    if (ctm) {
+      const p1 = scribeSvg.createSVGPoint();
+      p1.x = pt.x; p1.y = pt.y;
+      const p2 = scribeSvg.createSVGPoint();
+      p2.x = pt2.x; p2.y = pt2.y;
+      const s1 = p1.matrixTransform(ctm);
+      const s2 = p2.matrixTransform(ctm);
+
+      const inner = scribeSvg.closest('.scribe-paper-inner');
+      const rInner = inner?.getBoundingClientRect();
+      if (rInner) {
+        const x = (s1.x - rInner.left);
+        const y = (s1.y - rInner.top);
+        const dx = (s2.x - s1.x);
+        const dy = (s2.y - s1.y);
+        const ang = Math.atan2(dy, dx) * (180 / Math.PI);
+
+        // Offset so the “tip” sits on the line; tuned for this 24x24 pencil icon.
+        const offX = -pencilW * 0.72;
+        const offY = -pencilH * 0.20;
+        scribePencil.style.transform = `translate(${x + offX}px, ${y + offY}px) rotate(${ang + 18}deg)`;
+      }
+    }
+
+    scribeRaf = requestAnimationFrame(tick);
+  };
+
+  scribeRaf = requestAnimationFrame(tick);
+}
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
 let toastTimer;
@@ -1338,9 +1472,9 @@ async function stopRecording() {
   recBadge.classList.remove('visible');
   timerBadge.classList.remove('visible');
   recBtn.disabled = true;
-  loadingTitle.textContent = 'Analyzing with AI…';
-  loadingSub.textContent = 'Saving video, chart + SOAP (Gemini)…';
+  if (statusText) statusText.textContent = 'Processing…';
   loadingOverlay.classList.add('visible');
+  startScribeMotion();
 
   try {
     // Give MediaRecorder a moment to flush uploads
@@ -1350,6 +1484,7 @@ async function stopRecording() {
     const result = await res.json();
 
     loadingOverlay.classList.remove('visible');
+    stopScribeMotion();
 
     if (result.patientChart) {
       showToast('✅ Analysis complete — check the dashboard!', 5000);
@@ -1364,6 +1499,7 @@ async function stopRecording() {
 
   } catch (err) {
     loadingOverlay.classList.remove('visible');
+    stopScribeMotion();
     showToast('⚠️ Error stopping session: ' + err.message);
   }
 
