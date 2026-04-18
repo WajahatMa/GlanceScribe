@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>GlanceScribe — Record</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700&family=Montserrat:wght@600;700&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -23,6 +26,13 @@
     --glow-strong: rgba(13,148,136,0.75);
     --clickable-grad-a: rgba(13,148,136,0.95);
     --clickable-grad-b: rgba(34,199,184,0.85);
+    /* Recording card (reference UI) */
+    --rec-bg: #1a1a1f;
+    --rec-surface: #242429;
+    --rec-border: rgba(255, 255, 255, 0.08);
+    --rec-text: #e8e8ec;
+    --rec-muted: #888888;
+    --rec-red: #e84040;
   }
 
   html, body {
@@ -42,10 +52,10 @@
     height: 100dvh;
   }
 
-  /* Clickable effect (teal version of the Uiverse hover style) */
-  button, a, .status-pill, .camera-wrap { -webkit-tap-highlight-color: transparent; }
-  button, a { transition: all 450ms ease-in-out; }
-  button:focus-visible, a:focus-visible {
+  /* Clickable effect (teal) — skip circular record / ctrl chrome */
+  button, a, .camera-wrap { -webkit-tap-highlight-color: transparent; }
+  button:not(.rec-btn), a { transition: all 450ms ease-in-out; }
+  button:not(.rec-btn):focus-visible, a:focus-visible {
     outline: none;
     box-shadow:
       inset 0px 1px 0px 0px rgba(240,240,240,0.10),
@@ -98,20 +108,6 @@
 
   .logo-text span { color: var(--accent2); }
 
-  .status-pill {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 5px 12px;
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--muted);
-    transition: all 0.3s;
-  }
-
   .dash-btn {
     height: 30px;
     padding: 0 12px;
@@ -140,35 +136,204 @@
   }
   .dash-btn:active { transform: translateY(0px); }
 
-  .status-pill.recording {
-    background: rgba(255, 77, 109, 0.1);
-    border-color: rgba(255, 77, 109, 0.3);
-    color: var(--red);
-  }
-
-  .status-pill.ready {
-    background: rgba(52, 211, 153, 0.1);
-    border-color: rgba(52, 211, 153, 0.3);
-    color: var(--green);
-  }
-
-  .dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: currentColor;
-  }
-
-  .recording .dot { animation: pulse 1s ease-in-out infinite; }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.3; }
-  }
-
-  /* Camera preview */
-  .camera-wrap {
+  /* Bottom strip: ~75% transcript | ~25% duration + record (camera stays full-width above) */
+  .record-layout {
+    display: flex;
     flex: 1;
+    min-height: 0;
+    gap: 12px;
+    align-items: stretch;
+  }
+
+  .record-left {
+    flex: 3;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .record-right {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 14px;
+    padding: 0 0 0 4px;
+  }
+
+  /* Recording card — same structure & styles as reference snippet */
+  .rec-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 12px 14px;
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    margin-inline: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+  }
+
+  .rec-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .waveform {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    height: 28px;
+  }
+
+  .wave-bar {
+    width: 3px;
+    border-radius: 2px;
+    background: var(--rec-red);
+    opacity: 0.25;
+    transition: opacity 0.2s;
+  }
+
+  .recording .wave-bar {
+    opacity: 1;
+    animation: wave 0.9s ease-in-out infinite;
+  }
+
+  @keyframes wave {
+    0%, 100% { transform: scaleY(0.3); }
+    50% { transform: scaleY(1); }
+  }
+
+  .wave-bar:nth-child(1)  { height: 10px; animation-delay: 0s; }
+  .wave-bar:nth-child(2)  { height: 18px; animation-delay: 0.07s; }
+  .wave-bar:nth-child(3)  { height: 28px; animation-delay: 0.14s; }
+  .wave-bar:nth-child(4)  { height: 36px; animation-delay: 0.21s; }
+  .wave-bar:nth-child(5)  { height: 40px; animation-delay: 0.28s; }
+  .wave-bar:nth-child(6)  { height: 32px; animation-delay: 0.35s; }
+  .wave-bar:nth-child(7)  { height: 24px; animation-delay: 0.42s; }
+  .wave-bar:nth-child(8)  { height: 38px; animation-delay: 0.49s; }
+  .wave-bar:nth-child(9)  { height: 28px; animation-delay: 0.42s; }
+  .wave-bar:nth-child(10) { height: 20px; animation-delay: 0.35s; }
+  .wave-bar:nth-child(11) { height: 30px; animation-delay: 0.28s; }
+  .wave-bar:nth-child(12) { height: 38px; animation-delay: 0.21s; }
+  .wave-bar:nth-child(13) { height: 40px; animation-delay: 0.14s; }
+  .wave-bar:nth-child(14) { height: 32px; animation-delay: 0.07s; }
+  .wave-bar:nth-child(15) { height: 18px; animation-delay: 0s; }
+  .wave-bar:nth-child(16) { height: 10px; animation-delay: 0.07s; }
+
+  .timer {
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.04em;
+    line-height: 1.1;
+  }
+
+  .rec-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--rec-red);
+    margin-right: 6px;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .recording .rec-dot {
+    opacity: 1;
+    animation: blink 1.2s ease-in-out infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.2; }
+  }
+
+  .rec-btn {
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.15s, background 0.2s;
+    position: relative;
+    background: var(--rec-red);
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .rec-btn:hover:not(:disabled) { transform: scale(1.06); }
+  .rec-btn:active:not(:disabled) { transform: scale(0.96); }
+
+  .rec-btn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+    transform: none;
+    pointer-events: none;
+  }
+
+  .rec-btn .ring {
+    position: absolute;
+    inset: -5px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(232, 64, 64, 0.3);
+    pointer-events: none;
+  }
+
+  .recording .rec-btn .ring {
+    animation: pulse-ring 1.4s ease-out infinite;
+  }
+
+  @keyframes pulse-ring {
+    0% { transform: scale(1); opacity: 0.6; }
+    100% { transform: scale(1.45); opacity: 0; }
+  }
+
+  .icon-mic,
+  .icon-stop {
+    width: 26px;
+    height: 26px;
+    fill: #fff;
+  }
+
+  @media (max-width: 720px) {
+    .record-layout {
+      flex-direction: column;
+    }
+    .record-right {
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0;
+      gap: 10px;
+    }
+    .record-right .rec-card {
+      flex: 1;
+      min-width: 0;
+      width: auto;
+    }
+  }
+
+  /* Camera preview — larger share of viewport + taller cap vs bottom strip */
+  .camera-wrap {
+    flex: 2;
     min-height: 0;
     background: #000; /* letterbox background when using object-fit: contain */
     border-radius: 16px;
@@ -176,8 +341,7 @@
     overflow: hidden;
     position: relative;
     cursor: pointer; /* tap / click to turn on preview before recording (iOS needs a gesture) */
-    /* Keep a consistent, phone-like viewport without extreme cropping */
-    max-height: 52vh;
+    max-height: min(72vh, 85dvh);
     aspect-ratio: 3 / 4;
   }
 
@@ -258,16 +422,18 @@
 
   .timer-badge.visible { display: block; }
 
-  /* Transcript preview */
+  /* Transcript preview (left ~75% of bottom row) */
   .transcript-wrap {
+    flex: 1;
+    min-height: 0;
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 14px;
     padding: 12px 14px;
-    flex-shrink: 0;
-    height: 90px;
     overflow: hidden;
     position: relative;
+    display: flex;
+    flex-direction: column;
   }
 
   .transcript-label {
@@ -277,16 +443,17 @@
     color: var(--muted);
     text-transform: uppercase;
     margin-bottom: 6px;
+    flex-shrink: 0;
   }
 
   #transcript-preview {
     font-size: 13px;
     line-height: 1.5;
     color: var(--text);
-    overflow: hidden;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .transcript-empty { color: var(--muted); font-style: italic; }
@@ -297,47 +464,6 @@
     display: flex;
     gap: 10px;
     align-items: center;
-  }
-
-  .btn-main {
-    flex: 1;
-    height: 58px;
-    border: none;
-    border-radius: 14px;
-    font-size: 17px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    letter-spacing: -0.3px;
-    -webkit-tap-highlight-color: transparent;
-  }
-
-  .btn-main:active { transform: scale(0.97); }
-
-  .btn-main:hover, .btn-main:focus-visible {
-    background: linear-gradient(0deg, var(--clickable-grad-a), var(--clickable-grad-b));
-    box-shadow:
-      inset 0px 1px 0px 0px rgba(240,240,240,0.16),
-      inset 0px -4px 0px 0px rgba(0,0,0,0.24),
-      0px 0px 0px 4px rgba(13,148,136,0.18),
-      0px 0px 78px 0px var(--glow-strong);
-    transform: translateY(-2px);
-  }
-  .btn-main:active { transform: translateY(0px) scale(0.98); }
-
-  .btn-start {
-    background: var(--accent);
-    color: #fff;
-  }
-  .btn-start:hover, .btn-start:focus-visible { box-shadow: 0 0 78px var(--glow-strong); }
-
-  .btn-stop {
-    background: var(--red);
-    color: #fff;
   }
 
   .btn-icon {
@@ -374,6 +500,7 @@
     display: flex;
     gap: 8px;
     flex-shrink: 0;
+    justify-content: center;
   }
 
   .stat {
@@ -398,6 +525,12 @@
     margin-top: 1px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+  }
+
+  .stat.stat-only {
+    flex: 0 1 auto;
+    min-width: 120px;
+    max-width: 200px;
   }
 
   /* Toast */
@@ -476,15 +609,10 @@
     <div class="logo-text">Glance<span>Scribe</span></div>
   </div>
   <div class="header-right">
-    <div class="status-pill" id="status-pill">
-      <div class="dot"></div>
-      <span id="status-text">Tap Start</span>
-    </div>
-    <a class="dash-btn" href="/dashboard.html">📊 Dashboard</a>
+    <a class="dash-btn" href="/dashboard.html">Dashboard</a>
   </div>
 </div>
 
-<!-- Camera -->
 <div class="camera-wrap" id="camera-wrap" role="button" tabindex="0" aria-label="Camera preview — tap to enable if black">
   <video id="preview" autoplay playsinline muted></video>
   <canvas id="pose-canvas"></canvas>
@@ -498,33 +626,43 @@
   </div>
 </div>
 
-<!-- Live transcript preview -->
-<div class="transcript-wrap">
-  <div class="transcript-label">Live Transcript</div>
-  <div id="transcript-preview" class="transcript-empty">Transcript will appear here during recording…</div>
-</div>
+<div class="record-layout">
+  <div class="record-left">
+    <div class="transcript-wrap">
+      <div class="transcript-label">Live Transcript</div>
+      <div id="transcript-preview" class="transcript-empty">Transcript will appear here during recording…</div>
+    </div>
+  </div>
+  <aside class="record-right" aria-label="Recording controls">
+    <div class="rec-card" id="card">
+      <div class="rec-label">
+        <span class="rec-dot" id="dot" aria-hidden="true"></span>
+        <span id="status-text" aria-live="polite">ready to record</span>
+      </div>
 
-<!-- Stats -->
-<div class="stats">
-  <div class="stat">
-    <div class="stat-val" id="stat-lines">0</div>
-    <div class="stat-label">Lines</div>
-  </div>
-  <div class="stat">
-    <div class="stat-val" id="stat-chunks">0</div>
-    <div class="stat-label">Video</div>
-  </div>
-  <div class="stat">
-    <div class="stat-val" id="stat-dur">0s</div>
-    <div class="stat-label">Duration</div>
-  </div>
-</div>
+      <div class="waveform" id="wave">
+        <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+        <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+        <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+        <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+        <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+      </div>
 
-<!-- Controls -->
-<div class="controls">
-  <button class="btn-icon" id="btn-flip" title="Flip camera">🔄</button>
-  <button class="btn-main btn-start" id="btn-main">▶ Start Recording</button>
-  <button class="btn-icon" id="btn-settings" title="Settings">⚙</button>
+      <div class="timer" id="timer">0:00</div>
+
+      <button type="button" class="rec-btn" id="recBtn" aria-label="Start recording">
+        <div class="ring"></div>
+        <svg class="icon-mic" id="iconMic" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 1a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4zm-6.5 10a6.5 6.5 0 0 0 13 0h1.5a8 8 0 0 1-7.25 7.94V21h-1.5v-2.06A8 8 0 0 1 4 11h1.5z"/>
+        </svg>
+        <svg class="icon-stop" id="iconStop" viewBox="0 0 24 24" style="display:none" aria-hidden="true">
+          <rect x="5" y="5" width="14" height="14" rx="2"/>
+        </svg>
+      </button>
+
+</div>
+  </aside>
 </div>
 
 <!-- Loading overlay -->
@@ -566,16 +704,16 @@ const state = {
 // ─── DOM refs ─────────────────────────────────────────────────────────────────
 const preview = document.getElementById('preview');
 const cameraWrap = document.getElementById('camera-wrap');
-const btnMain = document.getElementById('btn-main');
-const btnFlip = document.getElementById('btn-flip');
-const statusPill = document.getElementById('status-pill');
+const card = document.getElementById('card');
+const wave = document.getElementById('wave');
+const recBtn = document.getElementById('recBtn');
+const iconMic = document.getElementById('iconMic');
+const iconStop = document.getElementById('iconStop');
+const timerEl = document.getElementById('timer');
 const statusText = document.getElementById('status-text');
 const recBadge = document.getElementById('rec-badge');
 const timerBadge = document.getElementById('timer-badge');
 const transcriptPreview = document.getElementById('transcript-preview');
-const statLines = document.getElementById('stat-lines');
-const statChunks = document.getElementById('stat-chunks');
-const statDur = document.getElementById('stat-dur');
 const loadingOverlay = document.getElementById('loading-overlay');
 const loadingTitle = document.getElementById('loading-title');
 const loadingSub = document.getElementById('loading-sub');
@@ -613,20 +751,10 @@ async function initCamera() {
   }
 }
 
-// ─── Flip camera ─────────────────────────────────────────────────────────────
-btnFlip.addEventListener('click', async (e) => {
-  e.stopPropagation();
-  if (state.recording) { showToast('Cannot flip during recording'); return; }
-  state.facingMode = state.facingMode === 'environment' ? 'user' : 'environment';
-  await initCamera();
-  showToast(state.facingMode === 'environment' ? '📷 Back camera' : '🤳 Front camera');
-});
-
 // Live preview before recording: warm camera on load; on strict browsers (e.g. iOS) tap the frame once.
 async function warmPreviewIfIdle() {
   if (state.recording || state.mediaStream) return;
   await initCamera();
-  if (state.mediaStream) statusText.textContent = 'Tap Start';
 }
 cameraWrap.addEventListener('click', () => { warmPreviewIfIdle(); });
 cameraWrap.addEventListener('keydown', (e) => {
@@ -840,6 +968,13 @@ function formatTime(ms) {
   return `${String(m).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 }
 
+/** Card timer display (matches reference: m:ss) */
+function formatTimerCard(ms) {
+  const s = Math.floor(ms / 1000);
+  const m = Math.floor(s / 60);
+  return m + ':' + String(s % 60).padStart(2, '0');
+}
+
 // Base64 for PCM bytes (required by ElevenLabs `input_audio_chunk`)
 function uint8ToBase64(u8) {
   let bin = '';
@@ -963,7 +1098,6 @@ async function startScribe() {
             state.lastCommittedAt = Date.now();
             state.lastPartial = '';
             updateTranscriptPreview(line, false);
-            statLines.textContent = state.transcriptLines.length;
 
             const ar = await fetch('/append', {
               method: 'POST',
@@ -1103,7 +1237,6 @@ function startVideoRecorder() {
         const res = await fetch('/video/chunk', { method: 'POST', body: form });
         const json = await res.json();
         state.videoChunks = json.chunks ?? state.videoChunks + 1;
-        statChunks.textContent = state.videoChunks;
       } catch (err) {
         console.warn('Chunk upload failed:', err);
       }
@@ -1141,10 +1274,13 @@ async function startRecording() {
   focusFlushTimer = setInterval(() => { flushFocusLog(); }, 3000);
 
   // UI
-  btnMain.className = 'btn-main btn-stop';
-  btnMain.textContent = '■ Stop & Analyze';
-  statusPill.className = 'status-pill recording';
-  statusText.textContent = 'Recording';
+  if (card) card.classList.add('recording');
+  if (wave) wave.classList.add('recording');
+  if (iconMic) iconMic.style.display = 'none';
+  if (iconStop) iconStop.style.display = 'block';
+  if (statusText) statusText.textContent = 'recording';
+  if (timerEl) timerEl.textContent = formatTimerCard(0);
+  recBtn.setAttribute('aria-label', 'Stop and analyze');
   recBadge.classList.add('visible');
   timerBadge.classList.add('visible');
   transcriptPreview.textContent = '';
@@ -1153,8 +1289,9 @@ async function startRecording() {
 
   // Timer
   state.timerInterval = setInterval(() => {
-    timerBadge.textContent = formatTime(Date.now() - state.startTime);
-    statDur.textContent = Math.round((Date.now() - state.startTime) / 1000) + 's';
+    const elapsed = Date.now() - state.startTime;
+    timerBadge.textContent = formatTime(elapsed);
+    if (timerEl) timerEl.textContent = formatTimerCard(elapsed);
   }, 1000);
 
   // Start components
@@ -1191,12 +1328,16 @@ async function stopRecording() {
     state.audioContext = null;
   }
 
-  // UI → loading
+  // UI → loading (card back to idle while overlay runs)
+  if (card) card.classList.remove('recording');
+  if (wave) wave.classList.remove('recording');
+  if (iconMic) iconMic.style.display = 'block';
+  if (iconStop) iconStop.style.display = 'none';
+  if (statusText) statusText.textContent = 'ready to record';
+  if (timerEl) timerEl.textContent = '0:00';
   recBadge.classList.remove('visible');
   timerBadge.classList.remove('visible');
-  statusPill.className = 'status-pill';
-  statusText.textContent = 'Processing…';
-  btnMain.disabled = true;
+  recBtn.disabled = true;
   loadingTitle.textContent = 'Analyzing with AI…';
   loadingSub.textContent = 'Saving video, chart + SOAP (Gemini)…';
   loadingOverlay.classList.add('visible');
@@ -1226,16 +1367,12 @@ async function stopRecording() {
     showToast('⚠️ Error stopping session: ' + err.message);
   }
 
-  // Reset UI
-  btnMain.className = 'btn-main btn-start';
-  btnMain.textContent = '▶ Start Recording';
-  btnMain.disabled = false;
-  statusPill.className = 'status-pill ready';
-  statusText.textContent = 'Ready';
+  recBtn.setAttribute('aria-label', 'Start recording');
+  recBtn.disabled = false;
 }
 
 // ─── Main button ──────────────────────────────────────────────────────────────
-btnMain.addEventListener('click', async () => {
+recBtn.addEventListener('click', async () => {
   if (state.recording) {
     await stopRecording();
   } else {
@@ -1243,11 +1380,6 @@ btnMain.addEventListener('click', async () => {
     if (!state.mediaStream) await initCamera();
     await startRecording();
   }
-});
-
-// ─── Settings (placeholder) ───────────────────────────────────────────────────
-document.getElementById('btn-settings').addEventListener('click', () => {
-  showToast('⚙️ Settings coming soon');
 });
 
 // ─── Keep screen awake during recording ───────────────────────────────────────
@@ -1263,12 +1395,7 @@ requestWakeLock();
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 async function init() {
-  statusPill.className = 'status-pill ready';
-  statusText.textContent = 'Tap Start';
   await initCamera();
-  if (!state.mediaStream) {
-    statusText.textContent = 'Tap camera or Start';
-  }
 }
 
 init();

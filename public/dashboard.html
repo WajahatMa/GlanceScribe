@@ -627,6 +627,14 @@
     gap: 10px; padding: 50px 20px; color: var(--muted); text-align: center;
   }
 
+  .chart-empty-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 2px solid rgba(74, 96, 96, 0.4);
+    flex-shrink: 0;
+    opacity: 0.6;
+  }
   .chart-empty h3 { font-size: 16px; font-weight: 600; color: var(--text); }
   .chart-empty p { font-size: 13px; max-width: 320px; line-height: 1.5; }
 
@@ -1262,6 +1270,7 @@
 
               <div class="tab-panel" id="tab-chart">
                       <div id="chart-empty" class="chart-empty">
+                        <div class="chart-empty-icon" aria-hidden="true"></div>
                         <h3>No chart yet</h3>
                         <p>Start a recording session on your iPhone. AI generates a structured chart when you stop.</p>
                       </div>
