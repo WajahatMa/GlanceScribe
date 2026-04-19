@@ -1,0 +1,168 @@
+ç<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>GlanceScribe — Dashboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;500;700&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --bg: #0c0c0e; --surface: #131316; --border: #222226; --text: #f0f0f0; --muted: #555; --accent: #a78bfa; --green: #4ade80; --amber: #fbbf24; --red: #f87171; }
+  body { background: var(--bg); color: var(--text); font-family: 'Syne', sans-serif; min-height: 100vh; display: grid; grid-template-columns: 1fr 340px; gap: 0; }
+  .main { padding: 2rem; display: flex; flex-direction: column; gap: 1.25rem; border-right: 1px solid var(--border); }
+  .sidebar { padding: 2rem; display: flex; flex-direction: column; gap: 1.25rem; }
+  .logo { font-size: 13px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.5rem; }
+  .logo span { color: var(--accent); }
+  #frame-img { width: 100%; border-radius: 10px; background: #0a0a0a; border: 1px solid var(--border); aspect-ratio: 4/3; object-fit: cover; display: block; }
+  .placeholder { width: 100%; border-radius: 10px; background: #0a0a0a; border: 1px solid var(--border); aspect-ratio: 4/3; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 13px; font-family: 'DM Mono', monospace; }
+  .status-row { display: flex; align-items: center; gap: 10px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+  .dot.green { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .dot.amber { background: var(--amber); box-shadow: 0 0 8px var(--amber); animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+  .status-text { font-size: 13px; color: var(--muted); font-family: 'DM Mono', monospace; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; }
+  .card-label { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; font-family: 'DM Mono', monospace; }
+  .body-part { font-size: 36px; font-weight: 700; color: var(--text); line-height: 1.1; margin-bottom: 6px; min-height: 44px; }
+  .conf-badge { display: inline-block; font-size: 11px; padding: 3px 10px; border-radius: 99px; font-family: 'DM Mono', monospace; letter-spacing: 0.04em; }
+  .high { background: rgba(74,222,128,0.12); color: var(--green); border: 1px solid rgba(74,222,128,0.2); }
+  .medium { background: rgba(251,191,36,0.12); color: var(--amber); border: 1px solid rgba(251,191,36,0.2); }
+  .low { background: rgba(248,113,113,0.12); color: var(--red); border: 1px solid rgba(248,113,113,0.2); }
+  .none { background: rgba(255,255,255,0.04); color: var(--muted); border: 1px solid var(--border); }
+  .scan-info { font-size: 12px; color: var(--muted); font-family: 'DM Mono', monospace; margin-top: 10px; }
+  .history-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .history-item:last-child { border-bottom: none; }
+  .history-time { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); }
+  .api-input { width: 100%; background: #0a0a0a; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; color: var(--text); font-size: 13px; font-family: 'DM Mono', monospace; outline: none; margin-bottom: 8px; }
+  .api-input:focus { border-color: var(--accent); }
+  .btn { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: transparent; color: var(--text); font-size: 13px; cursor: pointer; font-family: 'Syne', sans-serif; letter-spacing: 0.04em; transition: all 0.15s; }
+  .btn:hover { background: var(--surface); border-color: var(--accent); color: var(--accent); }
+  .counter { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .metric { background: #0a0a0a; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+  .metric-val { font-size: 22px; font-weight: 700; }
+  .metric-lbl { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; margin-top: 2px; }
+</style>
+</head>
+<body>
+
+<div class="main">
+  <div>
+    <div class="logo">Glance<span>Scribe</span></div>
+    <div class="status-row">
+      <div class="dot" id="dot"></div>
+      <span class="status-text" id="status">Waiting for phone to connect...</span>
+    </div>
+  </div>
+  <div id="img-container">
+    <div class="placeholder" id="placeholder">Waiting for camera frames...</div>
+    <img id="frame-img" style="display:none;" alt="Camera frame" />
+  </div>
+  <div id="setup-card" class="card">
+    <div class="card-label">Gemini API key</div>
+    <input class="api-input" type="password" id="api-key" placeholder="AIzaSy..." />
+    <button class="btn" id="save-btn" onclick="saveKey()">Save key</button>
+  </div>
+</div>
+
+<div class="sidebar">
+  <div class="card">
+    <div class="card-label">Detected body part</div>
+    <div class="body-part" id="body-part">—</div>
+    <span class="conf-badge none" id="conf-badge">awaiting scan</span>
+    <div class="scan-info" id="scan-info">Connect phone to start</div>
+  </div>
+
+  <div class="counter">
+    <div class="metric"><div class="metric-val" id="scan-count">0</div><div class="metric-lbl">scans done</div></div>
+    <div class="metric"><div class="metric-val" id="frame-count">0</div><div class="metric-lbl">frames received</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">History</div>
+    <div id="history"><p style="font-size:13px;color:var(--muted);">No scans yet</p></div>
+  </div>
+</div>
+
+<script>
+const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+const wsHost = location.protocol === 'https:' ? location.hostname : location.hostname + ':3000';
+const ws = new WebSocket(proto + '://' + wsHost);
+let geminiKey = '', scanCount = 0, frameCount = 0;
+
+ws.onopen = () => {
+  ws.send(JSON.stringify({ type: 'register', role: 'receiver' }));
+};
+
+ws.onmessage = async (e) => {
+  const msg = JSON.parse(e.data);
+  if (msg.type === 'sender-connected') {
+    setStatus('amber', 'Phone connected — waiting for camera...');
+  }
+  if (msg.type === 'frame') {
+    frameCount++;
+    document.getElementById('frame-count').textContent = frameCount;
+    const img = document.getElementById('frame-img');
+    img.src = 'data:image/jpeg;base64,' + msg.data;
+    img.style.display = 'block';
+    document.getElementById('placeholder').style.display = 'none';
+    setStatus('green', 'Receiving frames from phone');
+    if (geminiKey) analyzeFrame(msg.data);
+  }
+};
+
+function saveKey() {
+  const val = document.getElementById('api-key').value.trim();
+  if (!val) return;
+  geminiKey = val;
+  document.getElementById('setup-card').style.opacity = '0.4';
+  document.getElementById('save-btn').textContent = 'Key saved';
+  document.getElementById('save-btn').disabled = true;
+  document.getElementById('scan-info').textContent = 'Key saved — analyzing each frame';
+}
+
+async function analyzeFrame(b64) {
+  try {
+    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + geminiKey, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [
+          { inline_data: { mime_type: 'image/jpeg', data: b64 } },
+          { text: 'What part of a human body is shown in this image? Give your best guess. Examples: hand, arm, leg, face, chest, back, foot, knee, finger, wrist. Only return none if truly no human body is visible. Respond ONLY with valid JSON no markdown: {"body_part": "...", "confidence": "high|medium|low"}' }
+        ]}],
+        generationConfig: { maxOutputTokens: 80 }
+      })
+    });
+    const data = await res.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+    const result = JSON.parse(text.replace(/```json|```/g, '').trim());
+    showResult(result.body_part || 'none', result.confidence || 'low');
+  } catch(e) { console.error(e); }
+}
+
+function showResult(part, conf) {
+  scanCount++;
+  document.getElementById('scan-count').textContent = scanCount;
+  document.getElementById('body-part').textContent = part;
+  const badge = document.getElementById('conf-badge');
+  badge.textContent = conf;
+  badge.className = 'conf-badge ' + (part === 'none' ? 'none' : conf);
+  document.getElementById('scan-info').textContent = 'Last scan: ' + new Date().toLocaleTimeString();
+
+  const history = document.getElementById('history');
+  if (scanCount === 1) history.innerHTML = '';
+  const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const item = document.createElement('div');
+  item.className = 'history-item';
+  item.innerHTML = '<span>' + part + '</span><div style="display:flex;gap:8px;align-items:center;"><span class="conf-badge ' + conf + '" style="font-size:10px;">' + conf + '</span><span class="history-time">' + time + '</span></div>';
+  history.prepend(item);
+  if (history.children.length > 10) history.lastChild.remove();
+}
+
+function setStatus(color, text) {
+  document.getElementById('dot').className = 'dot ' + color;
+  document.getElementById('status').textContent = text;
+}
+</script>
+</body>
+</html>

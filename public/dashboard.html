@@ -46,6 +46,8 @@
     font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
     -webkit-font-smoothing: antialiased;
     min-height: 100vh;
+    display: flex;
+    flex-direction: column;
   }
 
   /* Clickable effect (teal version of the Uiverse hover style) */
@@ -201,9 +203,11 @@
     align-items: stretch;
     gap: 18px;
     padding: 20px 28px;
-    min-height: calc(100vh - 56px);
+    flex: 1;
+    min-height: 0;
     max-width: 1440px;
     margin: 0 auto;
+    width: 100%;
   }
 
   .sidebar {
@@ -239,6 +243,7 @@
     align-items: flex-start;
     padding: 14px 16px 10px;
     border-bottom: none;
+    flex-shrink: 0;
   }
 
   .patient-chart-head-text {
@@ -270,14 +275,6 @@
     color: var(--text);
     letter-spacing: -0.02em;
     line-height: 1.35;
-  }
-
-  .patient-chart-actions {
-    display: flex;
-    gap: 6px;
-    align-items: center;
-    flex-shrink: 0;
-    padding-top: 1px;
   }
 
   .card-body { padding: 14px 16px; }
@@ -320,12 +317,30 @@
   .transcript-empty-msg { color: var(--muted); font-style: italic; font-size: 12px; }
 
   /* ─── Main panel ──────────────────────────────────────────────────────────── */
-  .main-panel { display: flex; flex-direction: column; gap: 14px; }
+  .main-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    min-height: 0;
+    min-width: 0;
+  }
+
+  .main-panel > .card {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+  }
 
   /* ─── Tabs (CSS-only radios + glider, inspired by segmented tab UI) ─────────── */
   .tabs-ui-outer {
     margin: 0;
     padding: 6px 16px 12px;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
   }
 
   .patient-chart-head-text .tabs-ui-title-line {
@@ -339,7 +354,13 @@
     max-width: 220px;
   }
 
-  .tabs-ui-container { width: 100%; }
+  .tabs-ui-container {
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
 
   .tabs-ui-card {
     position: relative;
@@ -348,6 +369,10 @@
     border-radius: var(--radius);
     overflow: hidden;
     box-shadow: var(--shadow-sm);
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
   }
 
   .tabs-ui-input {
@@ -622,21 +647,41 @@
     pointer-events: none;
   }
 
+  .tabs-ui-label-row,
+  .tabs-ui-glider,
+  .tabs-ui-tabs-shadow {
+    flex-shrink: 0;
+  }
+
   .tabs-ui-panels {
     position: relative;
     background: var(--surface);
     border-top: 1px solid var(--border2);
-    min-height: 120px;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
   }
 
-  .tabs-ui-panels .tab-panel { display: none; padding: 18px 16px; }
+  .tabs-ui-panels .tab-panel {
+    display: none;
+    padding: 18px 16px;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex-direction: column;
+  }
 
-  #pc-tab-soap:checked ~ .tabs-ui-panels #tab-soap { display: block; }
-  #pc-tab-highlight:checked ~ .tabs-ui-panels #tab-highlight { display: block; }
-  #pc-tab-chart:checked ~ .tabs-ui-panels #tab-chart { display: block; }
-  #pc-tab-conversation:checked ~ .tabs-ui-panels #tab-conversation { display: block; }
-  #pc-tab-plan:checked ~ .tabs-ui-panels #tab-plan { display: block; }
-  #pc-tab-flags:checked ~ .tabs-ui-panels #tab-flags { display: block; }
+  #pc-tab-soap:checked ~ .tabs-ui-panels #tab-soap,
+  #pc-tab-highlight:checked ~ .tabs-ui-panels #tab-highlight,
+  #pc-tab-chart:checked ~ .tabs-ui-panels #tab-chart,
+  #pc-tab-conversation:checked ~ .tabs-ui-panels #tab-conversation,
+  #pc-tab-plan:checked ~ .tabs-ui-panels #tab-plan,
+  #pc-tab-flags:checked ~ .tabs-ui-panels #tab-flags {
+    display: flex;
+  }
 
   /* ─── Chart styles ────────────────────────────────────────────────────────── */
   .chart-empty {
@@ -657,7 +702,7 @@
 
   .participant-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
 
-  .participant-card { border-radius: 10px; padding: 12px 14px; border: 1px solid var(--border2); }
+  .participant-card { border-radius: 14px; padding: 12px 14px; border: 1px solid var(--border2); }
   .participant-card.doctor { background: linear-gradient(135deg, #ede9ff, #f5f3ff); border-color: #c4b5fd; }
   .participant-card.patient { background: linear-gradient(135deg, #ecfeff, #f0fdf9); border-color: #99f6e4; }
 
@@ -671,22 +716,6 @@
   .participant-card.patient .participant-name { color: #111827; }
   .participant-card.doctor .participant-clue,
   .participant-card.patient .participant-clue { color: #475569; }
-
-  .chart-section { margin-bottom: 18px; }
-
-  .chart-section-title {
-    font-size: 11px; font-weight: 700; letter-spacing: 0.7px; text-transform: uppercase;
-    color: rgba(240, 240, 240, 0.78);
-    margin-bottom: 8px;
-    padding-bottom: 6px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.09);
-    text-shadow: 0 0 22px rgba(45, 212, 191, 0.12);
-  }
-
-  .chief-complaint {
-    background: var(--accent-light); border: 1px solid #c4b5fd; border-radius: 10px;
-    padding: 12px 14px; font-size: 14px; font-weight: 500; color: var(--accent2); line-height: 1.4;
-  }
 
   /* Chart: accordion cards to reduce clutter */
   .chart-accordion {
@@ -725,59 +754,287 @@
   }
   details.chart-accordion[open] > .chart-accordion-summary::after { content: '▴'; }
   .chart-accordion-body { padding: 10px 12px 12px; }
-  .chart-body-text { font-size: 13px; line-height: 1.65; color: rgba(240,240,240,0.92); }
-  .chart-body-text--strong { font-weight: 600; }
+  .chart-accordion .chart-body-text {
+    font-size: 13px;
+    line-height: 1.65;
+    color: rgba(240, 240, 240, 0.92);
+  }
+  .chart-accordion .chart-body-text--strong { font-weight: 600; }
 
-  /* Chart: bubble / categorized cards (more “friendly” than one long page) */
-  .chart-bubble-stack {
+  /* Chart tab: mind map — chief complaint hub middle row; SVG lines in JS */
+  .chart-mindmap {
     display: grid;
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-
-  .chart-bubble {
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 1.45fr) minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
+    grid-template-areas:
+      "hpi . symptoms"
+      "exam hub assessment"
+      ". notes .";
+    gap: 16px 22px;
+    align-items: start;
+    justify-items: center;
+    margin-top: 0;
+    padding: 14px 8px 20px;
+    min-height: 0;
     position: relative;
-    padding: 14px 14px 12px;
-    border-radius: 16px;
-    border: 1px solid rgba(255, 255, 255, 0.10);
-    background:
-      radial-gradient(1200px 220px at 20% -10%, rgba(45, 212, 191, 0.10), transparent 55%),
-      radial-gradient(900px 220px at 90% -20%, rgba(56, 189, 248, 0.08), transparent 60%),
-      rgba(255, 255, 255, 0.018);
-    box-shadow:
-      0 0 0 1px rgba(0, 0, 0, 0.25),
-      0 14px 32px -28px rgba(45, 212, 191, 0.35);
+    isolation: isolate;
+    overflow: visible;
   }
 
-  .chart-bubble--assessment {
-    border-color: rgba(167, 139, 250, 0.22);
-    background:
-      radial-gradient(900px 240px at 15% -10%, rgba(167, 139, 250, 0.14), transparent 55%),
-      rgba(255, 255, 255, 0.018);
-    box-shadow:
-      0 0 0 1px rgba(0, 0, 0, 0.25),
-      0 18px 40px -30px rgba(167, 139, 250, 0.35);
+  .chart-mindmap-svg {
+    position: absolute;
+    grid-column: 1 / -1;
+    grid-row: 1 / -1;
+    inset: 0;
+    width: auto;
+    height: auto;
+    display: block;
+    overflow: visible;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .chart-mindmap::before {
+    content: '';
+    position: absolute;
+    inset: 8% 10% 14%;
+    border-radius: 50%;
+    background: radial-gradient(ellipse at 50% 42%, rgba(255, 253, 248, 0.55), rgba(254, 249, 232, 0.22) 44%, rgba(253, 224, 71, 0.08) 58%, transparent 72%);
+    z-index: -1;
+    pointer-events: none;
+  }
+
+  .chart-mindmap .chart-bubble {
+    position: relative;
+    padding: 12px 14px 14px;
+    border-radius: 14px;
+    border: 1px solid rgba(15, 23, 42, 0.09);
+    background: linear-gradient(180deg, #ebeae8, #e2e1de);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    width: 100%;
+    max-width: min(100%, 300px);
+    min-width: 0;
+    z-index: 1;
+  }
+
+  .chart-mindmap--hpi {
+    grid-area: hpi;
+    justify-self: end;
+    transform: translate(22px, 0);
+  }
+
+  .chart-mindmap--symptoms {
+    grid-area: symptoms;
+    justify-self: start;
+    transform: translate(-12px, 3px);
+  }
+
+  .chart-mindmap--exam {
+    grid-area: exam;
+    justify-self: end;
+    transform: translate(6px, 5px);
+  }
+
+  .chart-mindmap--hub {
+    grid-area: hub;
+    max-width: min(100%, 460px);
+    width: 100%;
+    z-index: 2;
+    transform: translate(2px, 1px);
+  }
+
+  .chart-mindmap--assessment {
+    grid-area: assessment;
+    justify-self: start;
+    transform: translate(-8px, -3px);
+  }
+
+  .chart-mindmap--notes {
+    grid-area: notes;
+    max-width: min(100%, 420px);
+    transform: translate(16px, 2px);
+  }
+
+  #tab-chart .chart-mindmap--hub .chart-body-text {
+    font-size: 15px;
+    line-height: 1.55;
+    text-align: center;
+    font-weight: 600;
+  }
+
+  @media (max-width: 760px) {
+    .chart-mindmap {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 12px;
+      min-height: 0;
+    }
+
+    .chart-mindmap-svg {
+      display: none;
+    }
+
+    .chart-mindmap::before {
+      inset: 0;
+      border-radius: 18px;
+    }
+
+    .chart-mindmap .chart-bubble {
+      max-width: 100%;
+    }
+
+    .chart-mindmap--hpi,
+    .chart-mindmap--symptoms,
+    .chart-mindmap--exam,
+    .chart-mindmap--hub,
+    .chart-mindmap--assessment,
+    .chart-mindmap--notes {
+      justify-self: stretch;
+      transform: none;
+    }
+
+    .chart-mindmap--hub {
+      order: -1;
+    }
+
+    .chart-mindmap .chart-mindmap--hub.chart-bubble--complaint {
+      padding: 16px 22px;
+      border-radius: 22px;
+    }
+
+    #tab-chart .chart-mindmap .chart-body-text {
+      text-align: left;
+    }
+
+    #tab-chart .chart-mindmap--hub .chart-body-text {
+      font-size: 14px;
+      text-align: left;
+    }
   }
 
   .chart-bubble-title {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 5px 10px;
-    border-radius: 999px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    background: rgba(255, 255, 255, 0.03);
-    color: rgba(240, 240, 240, 0.86);
-    font-size: 11px;
-    font-weight: 800;
-    letter-spacing: 0.6px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
     text-transform: uppercase;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
+    color: #64748b;
   }
 
-  .chart-bubble-body {
-    color: rgba(240, 240, 240, 0.92);
+  /* Mind map: muted cards, centered copy, highlighted title strip */
+  #tab-chart .chart-mindmap .chart-bubble-title {
+    text-align: center;
+    margin: 0 0 10px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    font-size: 10px;
+    letter-spacing: 0.85px;
+    color: #3f3f3c;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(248, 247, 245, 0.72));
+    border: 1px solid rgba(15, 23, 42, 0.07);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.65),
+      0 1px 2px rgba(0, 0, 0, 0.04);
   }
+
+  #tab-chart .chart-mindmap .chart-mindmap--hub .chart-bubble-title {
+    font-size: 11px;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+    padding: 9px 16px;
+    border-radius: 999px;
+    color: #4a4338;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(245, 242, 235, 0.85));
+  }
+
+  #tab-chart .chart-mindmap .symptom-grid {
+    justify-content: center;
+  }
+
+  @media (min-width: 761px) {
+    #tab-chart .chart-mindmap .chart-body-text {
+      text-align: center;
+    }
+  }
+
+  .chart-bubble--complaint {
+    background: linear-gradient(135deg, #fffbeb, #fef3c7);
+    border-color: #fcd34d;
+  }
+  .chart-bubble--complaint .chart-bubble-title { color: #b45309; }
+
+  .chart-bubble--hpi {
+    background: linear-gradient(135deg, #eff6ff, #e0f2fe);
+    border-color: #93c5fd;
+  }
+  .chart-bubble--hpi .chart-bubble-title { color: #1d4ed8; }
+
+  .chart-bubble--symptoms {
+    background: linear-gradient(135deg, #fdf4ff, #fae8ff);
+    border-color: #e879f9;
+  }
+  .chart-bubble--symptoms .chart-bubble-title { color: #a21caf; }
+
+  .chart-bubble--exam {
+    background: linear-gradient(135deg, #ecfeff, #f0fdf9);
+    border-color: #99f6e4;
+  }
+  .chart-bubble--exam .chart-bubble-title { color: #0f766e; }
+
+  .chart-bubble--assessment {
+    background: linear-gradient(135deg, #ede9ff, #f5f3ff);
+    border-color: #c4b5fd;
+  }
+  .chart-bubble--assessment .chart-bubble-title { color: #6d28d9; }
+
+  .chart-bubble--notes {
+    background: linear-gradient(135deg, #f1f5f9, #e8eef3);
+    border-color: #94a3b8;
+  }
+  .chart-bubble--notes .chart-bubble-title { color: #475569; }
+
+  /* Chief hub: muted base + warm yellow edge / glow */
+  .chart-mindmap .chart-mindmap--hub.chart-bubble--complaint {
+    padding: 20px 32px 20px;
+    border-radius: 999px;
+    border-color: rgba(234, 179, 8, 0.38);
+    background: linear-gradient(168deg, #e8e6e1 0%, #e2dfd8 42%, #dbd5ca 100%);
+    box-shadow:
+      0 0 0 1px rgba(234, 179, 8, 0.28),
+      0 0 26px 8px rgba(253, 224, 71, 0.28),
+      0 0 52px 16px rgba(250, 204, 21, 0.16),
+      0 0 72px 22px rgba(254, 243, 199, 0.1),
+      0 8px 22px -10px rgba(15, 23, 42, 0.07),
+      inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  }
+
+  #tab-chart .chart-mindmap .chart-mindmap-branch.chart-bubble--hpi,
+  #tab-chart .chart-mindmap .chart-mindmap-branch.chart-bubble--symptoms,
+  #tab-chart .chart-mindmap .chart-mindmap-branch.chart-bubble--exam,
+  #tab-chart .chart-mindmap .chart-mindmap-branch.chart-bubble--assessment,
+  #tab-chart .chart-mindmap .chart-mindmap-branch.chart-bubble--notes {
+    background: linear-gradient(180deg, #ebeae8, #e2e1de);
+    border-color: rgba(15, 23, 42, 0.09);
+  }
+
+  .chart-bubble-body { }
+
+  #tab-chart .chart-body-text {
+    font-size: 14px;
+    line-height: 1.65;
+    color: #111827;
+    font-weight: 500;
+  }
+  #tab-chart .chart-body-text--strong { font-weight: 600; color: #0f172a; }
+
+  #tab-chart .symptom-pill {
+    background: rgba(255, 255, 255, 0.5);
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 10px;
+  }
+  #tab-chart .symptom-name { color: #2d2c2a; }
+  #tab-chart .symptom-meta { color: #5c5a57; }
 
   .soap-meta-input {
     flex: 1;
@@ -840,17 +1097,21 @@
 
   .exchange.doctor {
     margin-right: auto; /* left side */
-    border-color: rgba(196, 181, 253, 0.28);
-    background: linear-gradient(180deg, rgba(196, 181, 253, 0.09), rgba(11, 20, 20, 0) 70%), var(--surface2);
-    box-shadow: 0 6px 18px -12px rgba(196, 181, 253, 0.35);
+    border-color: rgba(196, 181, 253, 0.32);
+    background: rgba(23, 24, 44, 0.92);
+    box-shadow:
+      0 6px 18px -12px rgba(196, 181, 253, 0.35),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
     border-radius: 14px 14px 14px 6px; /* subtle “tail” corner */
   }
 
   .exchange.patient {
     margin-left: auto; /* right side */
-    border-color: rgba(45, 212, 191, 0.24);
-    background: linear-gradient(180deg, rgba(45, 212, 191, 0.07), rgba(11, 20, 20, 0) 70%), var(--surface2);
-    box-shadow: 0 6px 18px -12px rgba(45, 212, 191, 0.28);
+    border-color: rgba(45, 212, 191, 0.28);
+    background: rgba(10, 33, 33, 0.92);
+    box-shadow:
+      0 6px 18px -12px rgba(45, 212, 191, 0.30),
+      inset 0 1px 0 rgba(255, 255, 255, 0.05);
     border-radius: 14px 14px 6px 14px; /* subtle “tail” corner */
   }
 
@@ -1089,11 +1350,6 @@
     color: rgba(255,255,255,0.35); font-size: 10px; text-align: right;
   }
 
-  .notes-box {
-    background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px;
-    padding: 10px 12px; font-size: 12.5px; color: #92400e; line-height: 1.5;
-  }
-
   .quality-badge {
     display: inline-block; font-size: 10px; font-weight: 600;
     padding: 2px 7px; border-radius: 5px; text-transform: capitalize;
@@ -1103,18 +1359,20 @@
   .quality-fair { background: var(--amber-light); color: var(--amber); }
   .quality-poor { background: var(--red-light); color: var(--red); }
 
-  /* Actions */
-  .actions-bar {
-    display: flex; gap: 8px; align-items: center;
-    padding: 12px 16px;
-    border-top: 1px solid var(--border); background: var(--surface2);
+  /* Full-width footer: “Generated …” pinned to viewport bottom */
+  .dashboard-page-footer {
+    flex-shrink: 0;
+    width: 100%;
+    padding: 10px 20px 14px;
+    border-top: 1px solid var(--border2);
+    background: var(--surface2);
+    text-align: center;
+    font-size: 11px;
+    color: var(--muted);
   }
 
-  .actions-bar-print-pdf {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    flex-shrink: 0;
+  .dashboard-page-footer #last-updated {
+    display: inline-block;
   }
 
   .btn {
@@ -1136,30 +1394,141 @@
       grid-template-rows: auto 1fr;
     }
     .plan-grid { grid-template-columns: 1fr; }
-    .participant-row { grid-template-columns: 1fr; }
     #body-3d-container { min-height: 260px; }
   }
 
+  /* SOAP / Plan tab tools (Print & PDF live here only) */
+  .soap-tab-tools,
+  .plan-tab-tools {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 10px 16px 12px;
+    border-bottom: 1px solid var(--border2);
+    background: var(--surface2);
+    flex-shrink: 0;
+  }
+
   /* SOAP Chart tab — layout adapted from ui-components ResultsPage (friend’s SOAP outline) */
-  .soap-embed-wrap {
+  .soap-embed-wrap,
+  .plan-embed-wrap {
     margin: 0 -16px -18px;
     border-radius: 0 0 var(--radius) var(--radius);
     overflow: auto;
-    max-height: min(85vh, 1000px);
+    flex: 1;
+    min-height: 0;
+    max-height: none;
     background: #0b0f17;
     color: #cbd5e1;
     font-size: 11px;
   }
-  .soap-embed-doc-area {
+
+  .soap-embed-doc-area,
+  .plan-embed-doc-area {
     padding: 16px 20px 28px;
     max-width: 720px;
     margin: 0 auto;
   }
-  .soap-doc-paper {
+  .soap-doc-paper,
+  .plan-doc-paper {
     background: #fff;
     border-radius: 8px;
     overflow: hidden;
     color: #1a1a1a;
+  }
+
+  .plan-doc-title-wrap {
+    text-align: center;
+    padding: 10px 14px 6px;
+    border-bottom: 1px solid #ccc;
+  }
+  .plan-doc-title {
+    font-size: 21px;
+    font-weight: 700;
+    color: #111;
+    letter-spacing: 0.5px;
+    font-family: 'Times New Roman', Times, serif;
+  }
+  .plan-doc-empty {
+    padding: 28px 18px;
+    text-align: center;
+    font-size: 13px;
+    font-style: italic;
+    color: #64748b;
+    font-family: 'Times New Roman', Times, serif;
+  }
+
+  /* Plan sections on white paper (tab view + print) */
+  .plan-doc-paper .plan-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 12px 14px 18px;
+  }
+  .plan-doc-paper .plan-item {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  }
+  .plan-doc-paper .plan-item.plan-item--edit {
+    display: grid;
+    grid-template-columns: minmax(9rem, 11.25rem) 1fr;
+    align-items: start;
+    column-gap: 14px;
+    row-gap: 0;
+  }
+  .plan-doc-paper .plan-item-label {
+    color: #334155;
+    text-shadow: none;
+  }
+  .plan-doc-paper .plan-item--edit .plan-item-label {
+    margin-bottom: 0;
+    padding-top: 11px;
+    line-height: 1.3;
+  }
+  .plan-doc-paper .plan-item-content {
+    color: #1e293b;
+  }
+  .plan-doc-paper .pill {
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    color: #0f172a;
+  }
+
+  .plan-item--edit .plan-edit-textarea {
+    display: block;
+    width: 100%;
+    margin-top: 0;
+    padding: 10px 12px;
+    font-size: 13px;
+    line-height: 1.5;
+    font-family: inherit;
+    color: #0f172a;
+    background: #fff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    resize: vertical;
+    min-height: 72px;
+    box-sizing: border-box;
+  }
+
+  .plan-item--edit .plan-edit-textarea:focus {
+    outline: none;
+    border-color: rgba(13, 148, 136, 0.55);
+    box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.12);
+  }
+
+  @media (max-width: 560px) {
+    .plan-doc-paper .plan-item.plan-item--edit {
+      grid-template-columns: 1fr;
+    }
+    .plan-doc-paper .plan-item--edit .plan-item-label {
+      padding-top: 0;
+      margin-bottom: 6px;
+    }
   }
   .soap-doc-title-wrap {
     text-align: center;
@@ -1245,7 +1614,7 @@
   }
   .soap-sig-line { border-bottom: 0.5px solid #999; height: 18px; margin-top: 2px; }
 
-  /* Print: only the SOAP note (white paper), not header / sidebar / tabs / chrome */
+  /* Print: SOAP or Plan document (body[data-print-layout] set in JS before print) */
   @media print {
     @page { margin: 12mm; size: auto; }
 
@@ -1266,8 +1635,11 @@
     .tabs-ui-label-row,
     .tabs-ui-glider,
     .tabs-ui-tabs-shadow,
-    .actions-bar,
-    .tabs-ui-panels .tab-panel:not(#tab-soap) {
+    .dashboard-page-footer,
+    .soap-tab-tools,
+    .plan-tab-tools,
+    body[data-print-layout="soap"] .tabs-ui-panels .tab-panel:not(#tab-soap),
+    body[data-print-layout="plan"] .tabs-ui-panels .tab-panel:not(#tab-plan) {
       display: none !important;
     }
 
@@ -1290,8 +1662,10 @@
       min-height: auto !important;
     }
 
-    .tabs-ui-panels,
-    .tabs-ui-panels #tab-soap {
+    body[data-print-layout="soap"] .tabs-ui-panels,
+    body[data-print-layout="soap"] .tabs-ui-panels #tab-soap,
+    body[data-print-layout="plan"] .tabs-ui-panels,
+    body[data-print-layout="plan"] .tabs-ui-panels #tab-plan {
       display: block !important;
       padding: 0 !important;
       border: none !important;
@@ -1303,7 +1677,8 @@
       box-shadow: none !important;
     }
 
-    .soap-embed-wrap {
+    body[data-print-layout="soap"] .soap-embed-wrap,
+    body[data-print-layout="plan"] .plan-embed-wrap {
       margin: 0 !important;
       max-height: none !important;
       background: #fff !important;
@@ -1311,13 +1686,15 @@
       border-radius: 0 !important;
     }
 
-    .soap-embed-doc-area {
+    body[data-print-layout="soap"] .soap-embed-doc-area,
+    body[data-print-layout="plan"] .plan-embed-doc-area {
       padding: 0 !important;
       margin: 0 !important;
       max-width: none !important;
     }
 
-    .soap-doc-paper {
+    body[data-print-layout="soap"] .soap-doc-paper,
+    body[data-print-layout="plan"] .plan-doc-paper {
       box-shadow: none !important;
       border-radius: 0 !important;
       border: none !important;
@@ -1334,6 +1711,29 @@
       overflow: visible !important;
       resize: none !important;
       background: #fff !important;
+    }
+
+    body[data-print-layout="plan"] .plan-doc-title-wrap {
+      border-bottom-color: #ccc !important;
+    }
+    body[data-print-layout="plan"] .plan-doc-paper .plan-item {
+      border-color: #ddd !important;
+      background: #fff !important;
+      box-shadow: none !important;
+    }
+    body[data-print-layout="plan"] .plan-doc-paper .plan-item-label {
+      color: #111 !important;
+    }
+    body[data-print-layout="plan"] .plan-doc-paper .plan-item-content,
+    body[data-print-layout="plan"] .plan-doc-paper .pill {
+      color: #1a1a1a !important;
+    }
+    body[data-print-layout="plan"] .plan-doc-paper .plan-edit-textarea {
+      border: 0.5px solid #bbb !important;
+      overflow: visible !important;
+      resize: none !important;
+      background: #fff !important;
+      color: #1a1a1a !important;
     }
   }
 </style>
@@ -1397,17 +1797,12 @@
 
   <!-- Main panel -->
   <main class="main-panel">
-    <div class="card" style="flex:1;">
+    <div class="card">
       <div class="card-header card-header--patient-chart">
         <div class="patient-chart-head-text">
           <p class="patient-chart-eyebrow">Patient Chart</p>
           <h2 class="patient-chart-title">Patient documentation</h2>
           <div class="tabs-ui-title-line" aria-hidden="true"></div>
-        </div>
-        <div class="patient-chart-actions">
-          <button class="btn" id="btn-save-soap" type="button" style="height:26px;font-size:11px;">Save SOAP</button>
-          <button class="btn" id="btn-refresh" style="height:26px;font-size:11px;">Refresh</button>
-          <button class="btn" id="btn-export" style="height:26px;font-size:11px;">Export</button>
         </div>
       </div>
 
@@ -1433,6 +1828,10 @@
             <section class="tabs-ui-panels">
 
               <div class="tab-panel" id="tab-soap">
+                      <div class="soap-tab-tools">
+                        <button class="btn" id="btn-print-soap" type="button" onclick="printSoapNote()">Print</button>
+                        <button class="btn" id="btn-download-soap-pdf" type="button" onclick="void downloadSoapPdf()">Download PDF</button>
+                      </div>
                       <div class="soap-embed-wrap">
                         <div class="soap-embed-doc-area">
                             <div class="soap-doc-paper">
@@ -1490,44 +1889,47 @@
                         <p>Start a recording session on your iPhone. AI generates a structured chart when you stop.</p>
                       </div>
                       <div id="chart-content" style="display:none;">
-                        <div class="participant-row" id="participants-row"></div>
-                        <div class="chart-section">
-                          <div class="chart-section-title">Chief Complaint</div>
-                          <div class="chief-complaint" id="chief-complaint"></div>
-                        </div>
-                        <div class="chart-bubble-stack" role="group" aria-label="Chart sections">
-                          <div class="chart-bubble">
+                        <div class="chart-mindmap" role="group" aria-label="Chart sections">
+                          <svg class="chart-mindmap-svg" aria-hidden="true"></svg>
+                          <div class="chart-bubble chart-bubble--hpi chart-mindmap--hpi chart-mindmap-branch">
                             <div class="chart-bubble-title">HPI</div>
                             <div class="chart-bubble-body">
                               <p class="chart-body-text" id="hpi"></p>
                             </div>
                           </div>
 
-                          <div class="chart-bubble">
+                          <div class="chart-bubble chart-bubble--symptoms chart-mindmap--symptoms chart-mindmap-branch">
                             <div class="chart-bubble-title">Symptoms</div>
                             <div class="chart-bubble-body">
                               <div class="symptom-grid" id="symptoms-grid"></div>
                             </div>
                           </div>
 
-                          <div class="chart-bubble">
+                          <div class="chart-bubble chart-bubble--exam chart-mindmap--exam chart-mindmap-branch">
                             <div class="chart-bubble-title">Exam</div>
                             <div class="chart-bubble-body">
                               <p class="chart-body-text" id="exam-findings"></p>
                             </div>
                           </div>
 
-                          <div class="chart-bubble chart-bubble--assessment">
+                          <div class="chart-bubble chart-bubble--complaint chart-mindmap--hub">
+                            <div class="chart-bubble-title">Chief Complaint</div>
+                            <div class="chart-bubble-body">
+                              <p class="chart-body-text" id="chief-complaint"></p>
+                            </div>
+                          </div>
+
+                          <div class="chart-bubble chart-bubble--assessment chart-mindmap--assessment chart-mindmap-branch">
                             <div class="chart-bubble-title">Assessment</div>
                             <div class="chart-bubble-body">
                               <p class="chart-body-text chart-body-text--strong" id="doctor-assessment"></p>
                             </div>
                           </div>
 
-                          <div id="notes-section" class="chart-bubble" style="display:none;">
+                          <div id="notes-section" class="chart-bubble chart-bubble--notes chart-mindmap--notes chart-mindmap-branch" style="display:none;">
                             <div class="chart-bubble-title">Notes</div>
                             <div class="chart-bubble-body">
-                              <div class="notes-box" id="chart-notes"></div>
+                              <p class="chart-body-text" id="chart-notes"></p>
                             </div>
                           </div>
                         </div>
@@ -1541,9 +1943,22 @@
                     </div>
 
               <div class="tab-panel" id="tab-plan">
-                      <div id="plan-empty" style="color:var(--muted);font-size:13px;font-style:italic;">No treatment plan recorded yet.</div>
-                      <div id="plan-content" style="display:none;">
-                        <div class="plan-grid" id="plan-grid"></div>
+                      <div class="plan-tab-tools">
+                        <button class="btn" id="btn-print-plan" type="button" onclick="printPlanNote()">Print</button>
+                        <button class="btn" id="btn-download-plan-pdf" type="button" onclick="void downloadPlanPdf()">Download PDF</button>
+                      </div>
+                      <div class="plan-embed-wrap">
+                        <div class="plan-embed-doc-area">
+                          <div class="plan-doc-paper" id="plan-doc-paper">
+                            <div class="plan-doc-title-wrap">
+                              <h2 class="plan-doc-title">— Treatment Plan —</h2>
+                            </div>
+                            <div id="plan-empty" class="plan-doc-empty">No treatment plan recorded yet.</div>
+                            <div id="plan-content" style="display:none;">
+                              <div class="plan-grid" id="plan-grid"></div>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
 
@@ -1555,16 +1970,13 @@
           </div>
         </div>
       </div>
-      <div class="actions-bar">
-        <span style="font-size:11px;color:var(--muted);flex:1;" id="last-updated"></span>
-        <div class="actions-bar-print-pdf">
-        <button class="btn" id="btn-print" type="button" onclick="printSoapNote()">Print</button>
-        <button class="btn" id="btn-download-soap-pdf" type="button" onclick="void downloadSoapPdf()">Download PDF</button>
-        </div>
-      </div>
     </div>
   </main>
 </div>
+
+<footer class="dashboard-page-footer" aria-label="Document generation time">
+  <span id="last-updated"></span>
+</footer>
 
 <!-- Three.js for 3D body (+ GLB + orbit, matching r128) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -1573,7 +1985,41 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
 <script>
+let printRestoreTabId = null;
+
+window.addEventListener('beforeprint', () => {
+  if (document.body.dataset.printLayout) return;
+  const planTab = document.getElementById('pc-tab-plan');
+  document.body.dataset.printLayout = planTab && planTab.checked ? 'plan' : 'soap';
+});
+window.addEventListener('afterprint', () => {
+  delete document.body.dataset.printLayout;
+  if (printRestoreTabId) {
+    const r = document.getElementById(printRestoreTabId);
+    if (r) r.checked = true;
+    printRestoreTabId = null;
+  }
+  if (typeof updatePatientChartSectionTitle === 'function') updatePatientChartSectionTitle();
+  if (typeof bodyScene !== 'undefined' && bodyScene) bodyScene.resize();
+});
+
 function printSoapNote() {
+  const prev = document.querySelector('input[name="pc-tab"]:checked');
+  printRestoreTabId = prev && prev.id !== 'pc-tab-soap' ? prev.id : null;
+  const soap = document.getElementById('pc-tab-soap');
+  if (soap) soap.checked = true;
+  if (typeof updatePatientChartSectionTitle === 'function') updatePatientChartSectionTitle();
+  document.body.dataset.printLayout = 'soap';
+  window.print();
+}
+
+function printPlanNote() {
+  const prev = document.querySelector('input[name="pc-tab"]:checked');
+  printRestoreTabId = prev && prev.id !== 'pc-tab-plan' ? prev.id : null;
+  const plan = document.getElementById('pc-tab-plan');
+  if (plan) plan.checked = true;
+  if (typeof updatePatientChartSectionTitle === 'function') updatePatientChartSectionTitle();
+  document.body.dataset.printLayout = 'plan';
   window.print();
 }
 
@@ -1602,6 +2048,7 @@ async function downloadSoapPdf() {
   const prevId = prevRadio ? prevRadio.id : null;
   const soapRadio = document.getElementById('pc-tab-soap');
   if (soapRadio) soapRadio.checked = true;
+  if (typeof updatePatientChartSectionTitle === 'function') updatePatientChartSectionTitle();
   if (typeof bodyScene !== 'undefined' && bodyScene) bodyScene.resize();
 
   await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
@@ -1637,6 +2084,78 @@ async function downloadSoapPdf() {
     if (prevId) {
       const r = document.getElementById(prevId);
       if (r) r.checked = true;
+      if (typeof updatePatientChartSectionTitle === 'function') updatePatientChartSectionTitle();
+      if (typeof bodyScene !== 'undefined' && bodyScene) bodyScene.resize();
+    }
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = prevLabel || 'Download PDF';
+    }
+  }
+}
+
+function planPdfFilename() {
+  const sid = (typeof currentSessionId === 'string' && currentSessionId) ? currentSessionId : '';
+  const safe = sid.replace(/[^\w\-]+/g, '_').replace(/^_|_$/g, '') || 'treatment-plan';
+  const d = new Date();
+  const stamp = d.getFullYear()
+    + String(d.getMonth() + 1).padStart(2, '0')
+    + String(d.getDate()).padStart(2, '0');
+  return safe + '_plan_' + stamp + '.pdf';
+}
+
+async function downloadPlanPdf() {
+  const el = document.getElementById('plan-doc-paper');
+  if (!el) {
+    alert('Treatment plan document not found.');
+    return;
+  }
+  if (typeof html2pdf === 'undefined') {
+    alert('PDF library did not load. Check your connection and try again, or use Print → Save as PDF.');
+    return;
+  }
+
+  const prevRadio = document.querySelector('input[name="pc-tab"]:checked');
+  const prevId = prevRadio ? prevRadio.id : null;
+  const planRadio = document.getElementById('pc-tab-plan');
+  if (planRadio) planRadio.checked = true;
+  if (typeof updatePatientChartSectionTitle === 'function') updatePatientChartSectionTitle();
+  if (typeof bodyScene !== 'undefined' && bodyScene) bodyScene.resize();
+
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+  const btn = document.getElementById('btn-download-plan-pdf');
+  const prevLabel = btn ? btn.textContent : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Generating…';
+  }
+
+  const opt = {
+    margin: [12, 12, 12, 12],
+    filename: planPdfFilename(),
+    image: { type: 'jpeg', quality: 0.92 },
+    html2canvas: {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      letterRendering: true,
+      backgroundColor: '#ffffff',
+    },
+    jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' },
+    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
+  };
+
+  try {
+    await html2pdf().set(opt).from(el).save();
+  } catch (e) {
+    console.error(e);
+    alert('Could not create PDF. Try Print → Save as PDF instead.');
+  } finally {
+    if (prevId) {
+      const r = document.getElementById(prevId);
+      if (r) r.checked = true;
+      if (typeof updatePatientChartSectionTitle === 'function') updatePatientChartSectionTitle();
       if (typeof bodyScene !== 'undefined' && bodyScene) bodyScene.resize();
     }
     if (btn) {
@@ -1654,13 +2173,86 @@ let transcriptLines = [];
 let sessionActive = false;
 let bodyScene = null;
 let currentSessionId = null;
+let chartMindmapLinksInited = false;
+
+function updateChartMindmapLinks() {
+  const root = document.querySelector('#chart-content .chart-mindmap');
+  const svg = root && root.querySelector('.chart-mindmap-svg');
+  if (!root || !svg) return;
+  const cc = document.getElementById('chart-content');
+  if (!cc || cc.style.display === 'none') return;
+  if (window.matchMedia('(max-width: 760px)').matches) {
+    svg.innerHTML = '';
+    return;
+  }
+  const hub = root.querySelector('.chart-mindmap--hub');
+  if (!hub) return;
+  const rr = root.getBoundingClientRect();
+  if (rr.width < 48 || rr.height < 48) {
+    svg.innerHTML = '';
+    return;
+  }
+  const hubR = hub.getBoundingClientRect();
+  const hx = hubR.left + hubR.width / 2 - rr.left;
+  const hy = hubR.top + hubR.height / 2 - rr.top;
+  const w = Math.max(1, Math.round(rr.width));
+  const h = Math.max(1, Math.round(rr.height));
+  svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  svg.setAttribute('width', String(w));
+  svg.setAttribute('height', String(h));
+
+  const stroke = 'rgba(100, 116, 139, 0.55)';
+  let inner = '';
+  root.querySelectorAll('.chart-mindmap-branch').forEach((node) => {
+    if (getComputedStyle(node).display === 'none') return;
+    const nr = node.getBoundingClientRect();
+    if (nr.width < 2 || nr.height < 2) return;
+    const nx = nr.left + nr.width / 2 - rr.left;
+    const ny = nr.top + nr.height / 2 - rr.top;
+    inner += `<line x1="${hx.toFixed(1)}" y1="${hy.toFixed(1)}" x2="${nx.toFixed(1)}" y2="${ny.toFixed(1)}" stroke="${stroke}" stroke-width="2" stroke-linecap="round"/>`;
+  });
+  svg.innerHTML = inner;
+}
+
+function scheduleChartMindmapLinks() {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(updateChartMindmapLinks);
+  });
+}
+
+function initChartMindmapLinks() {
+  if (chartMindmapLinksInited) return;
+  const root = document.querySelector('#chart-content .chart-mindmap');
+  if (!root) return;
+  chartMindmapLinksInited = true;
+  new ResizeObserver(() => scheduleChartMindmapLinks()).observe(root);
+  window.addEventListener('resize', scheduleChartMindmapLinks, { passive: true });
+}
+
+function updatePatientChartSectionTitle() {
+  const el = document.querySelector('.patient-chart-title');
+  if (!el) return;
+  const checked = document.querySelector('input[name="pc-tab"]:checked');
+  const titles = {
+    'pc-tab-soap': 'Patient documentation',
+    'pc-tab-highlight': 'Patient highlights',
+    'pc-tab-chart': 'Patient clinical chart',
+    'pc-tab-conversation': 'Patient conversation',
+    'pc-tab-plan': 'Patient treatment plan',
+    'pc-tab-flags': 'Patient clinical flags',
+  };
+  el.textContent = titles[checked?.id] ?? 'Patient documentation';
+}
 
 // ─── Tabs (CSS radios) — resize canvas when panel changes ─────────────────────
 document.querySelectorAll('input[name="pc-tab"]').forEach((radio) => {
   radio.addEventListener('change', () => {
+    updatePatientChartSectionTitle();
     if (bodyScene) bodyScene.resize();
+    scheduleChartMindmapLinks();
   });
 });
+updatePatientChartSectionTitle();
 
 // ─── Status polling ───────────────────────────────────────────────────────────
 async function pollStatus() {
@@ -1738,10 +2330,10 @@ function initSSE() {
         clearSoapPreview();
         clearHighlightPreview();
       } else if (msg.type === 'chart_ready') {
+        currentSessionId = msg.sessionId ?? currentSessionId;
         renderChart(msg.chart);
         document.getElementById('status-dot').className = 'status-dot';
         document.getElementById('status-label').textContent = 'Ready';
-        currentSessionId = msg.sessionId ?? currentSessionId;
         // Do not load SOAP here — chart is saved before soap.json is written; that would show stale data.
       } else if (msg.type === 'soap_ready') {
         loadSoapJson();
@@ -1776,65 +2368,52 @@ function addTranscriptLine(line) {
   box.scrollTop = box.scrollHeight;
 }
 
-function showSaveToast(msg, ok) {
-  const el = document.getElementById('last-updated');
-  if (!el) return;
-  const prev = el.textContent;
-  el.textContent = msg;
-  el.style.color = ok ? 'var(--teal, #0d9488)' : '#c2410c';
-  setTimeout(() => {
-    el.style.color = '';
-    el.textContent = prev;
-  }, 4500);
+function planLinesFromValue(val) {
+  if (Array.isArray(val)) return val.map((x) => String(x).trim()).filter(Boolean).join('\n');
+  if (val != null && String(val).trim()) return String(val).trim();
+  return '';
 }
 
-function buildSoapFromDom() {
-  if (!currentSoapJson) {
-    alert('No SOAP data loaded yet.');
-    return null;
-  }
-  const base = JSON.parse(JSON.stringify(currentSoapJson));
-  const sp = base.soap || (base.soap = {});
-  sp.subjective = sp.subjective || { hpi: [], ros: { positive: [], negative: [] } };
-  const subjText = document.getElementById('soap-field-subjective').value.trim();
-  sp.subjective.hpi = subjText ? [subjText] : [];
-  sp.subjective.ros = sp.subjective.ros || { positive: [], negative: [] };
-  sp.objective = sp.objective || { vitals: {}, physical_exam: [] };
-  sp.objective.summary = document.getElementById('soap-field-objective').value.trim() || '';
-  sp.assessment = sp.assessment || { problem_list: [] };
-  sp.assessment.summary = document.getElementById('soap-field-assessment').value.trim() || '';
-  sp.plan = sp.plan || { medications: [], follow_up: [], patient_instructions: [] };
-  sp.plan.summary = document.getElementById('soap-field-plan').value.trim() || '';
-  base.patient = base.patient || {};
-  base.patient.name = document.getElementById('soap-field-patient-name-input').value.trim() || null;
-  base.meta = base.meta || {};
-  base.meta.provider = document.getElementById('soap-field-provider-input').value.trim() || null;
-  return base;
+function followUpToText(v) {
+  if (v == null) return '';
+  if (Array.isArray(v)) return v.map((x) => String(x).trim()).filter(Boolean).join('\n');
+  return String(v);
 }
 
-async function saveSoapNote() {
-  const soap = buildSoapFromDom();
-  if (!soap) return;
-  const btn = document.getElementById('btn-save-soap');
-  const prev = btn ? btn.textContent : '';
-  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
-  try {
-    const res = await fetch('/soap/save', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ soap }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || res.statusText);
-    currentSoapJson = soap;
-    showSaveToast('SOAP saved · ' + new Date().toLocaleTimeString(), true);
-  } catch (e) {
-    console.error(e);
-    alert('Could not save SOAP: ' + (e.message || e));
-    showSaveToast('SOAP save failed', false);
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = prev || 'Save SOAP'; }
-  }
+function renderPlanEditorFromChart(chart) {
+  const plan = chart.planAndTreatment || {};
+  const planEmpty = document.getElementById('plan-empty');
+  const planContent = document.getElementById('plan-content');
+  const planGrid = document.getElementById('plan-grid');
+  if (!planGrid || !planContent || !planEmpty) return;
+  planEmpty.style.display = 'none';
+  planContent.style.display = 'block';
+  planGrid.innerHTML = `
+    <div class="plan-item plan-item--edit">
+      <div class="plan-item-label">Medications</div>
+      <textarea class="plan-edit-textarea" id="plan-field-medications" rows="5" spellcheck="true" placeholder="One medication per line (e.g. Acetaminophen 500 mg BID)"></textarea>
+    </div>
+    <div class="plan-item plan-item--edit">
+      <div class="plan-item-label">Follow-up</div>
+      <textarea class="plan-edit-textarea" id="plan-field-followup" rows="3" spellcheck="true" placeholder="Return visit, timing, labs, etc."></textarea>
+    </div>
+    <div class="plan-item plan-item--edit">
+      <div class="plan-item-label">Patient instructions</div>
+      <textarea class="plan-edit-textarea" id="plan-field-instructions" rows="6" spellcheck="true" placeholder="One instruction per line"></textarea>
+    </div>
+    <div class="plan-item plan-item--edit">
+      <div class="plan-item-label">Referrals</div>
+      <textarea class="plan-edit-textarea" id="plan-field-referrals" rows="4" spellcheck="true" placeholder="One referral per line"></textarea>
+    </div>
+  `;
+  const m = document.getElementById('plan-field-medications');
+  const f = document.getElementById('plan-field-followup');
+  const i = document.getElementById('plan-field-instructions');
+  const r = document.getElementById('plan-field-referrals');
+  if (m) m.value = planLinesFromValue(plan.medications);
+  if (f) f.value = followUpToText(plan.followUp);
+  if (i) i.value = planLinesFromValue(plan.instructions);
+  if (r) r.value = planLinesFromValue(plan.referrals);
 }
 
 // ─── Render chart ─────────────────────────────────────────────────────────────
@@ -1848,25 +2427,6 @@ function renderChart(chart) {
     qBadge.textContent = chart.transcriptQuality;
     qBadge.className = 'quality-badge quality-' + chart.transcriptQuality;
     qBadge.style.display = 'inline-block';
-  }
-
-  // Participants
-  const pRow = document.getElementById('participants-row');
-  pRow.innerHTML = '';
-  if (chart.participants) {
-    const { doctor, patient } = chart.participants;
-    pRow.innerHTML = `
-      <div class="participant-card doctor">
-        <div class="participant-label">Doctor</div>
-        <div class="participant-name">${doctor?.identified ? 'Identified' : 'Not confirmed'}</div>
-        <div class="participant-clue">${escHtml(doctor?.identifyingClues ?? '—')}</div>
-      </div>
-      <div class="participant-card patient">
-        <div class="participant-label">Patient</div>
-        <div class="participant-name">${escHtml(patient?.name ?? 'Unidentified')} ${patient?.age ? '· ' + escHtml(patient.age) : ''}</div>
-        <div class="participant-clue">${escHtml(patient?.identifyingClues ?? '—')}</div>
-      </div>
-    `;
   }
 
   document.getElementById('chief-complaint').textContent = chart.chiefComplaint ?? '—';
@@ -1938,46 +2498,7 @@ function renderChart(chart) {
     exList.innerHTML = '<p class="transcript-empty-msg">No key exchanges extracted.</p>';
   }
 
-  const plan = chart.planAndTreatment;
-  const planContent = document.getElementById('plan-content');
-  const planEmpty = document.getElementById('plan-empty');
-  const planGrid = document.getElementById('plan-grid');
-  planGrid.innerHTML = '';
-
-  if (plan && (plan.medications?.length || plan.followUp || plan.instructions?.length || plan.referrals?.length)) {
-    planEmpty.style.display = 'none';
-    planContent.style.display = 'block';
-    planGrid.innerHTML = `
-      <div class="plan-item">
-        <div class="plan-item-label">Medications</div>
-        <div class="plan-item-content">
-          ${plan.medications?.length
-            ? '<div class="pill-list">' + plan.medications.map((m) => `<span class="pill">${escHtml(m)}</span>`).join('') + '</div>'
-            : '<span style="color:var(--muted)">None prescribed</span>'}
-        </div>
-      </div>
-      <div class="plan-item">
-        <div class="plan-item-label">Follow-Up</div>
-        <div class="plan-item-content">${escHtml(plan.followUp ?? '—')}</div>
-      </div>
-      <div class="plan-item" style="grid-column:1/-1">
-        <div class="plan-item-label">Instructions</div>
-        <div class="plan-item-content">
-          ${plan.instructions?.length
-            ? '<ul style="padding-left:14px;list-style:disc;">' + plan.instructions.map((i) => `<li style="font-size:12.5px;line-height:1.5;">${escHtml(i)}</li>`).join('') + '</ul>'
-            : '<span style="color:var(--muted)">No specific instructions</span>'}
-        </div>
-      </div>
-      ${plan.referrals?.length ? `
-      <div class="plan-item" style="grid-column:1/-1">
-        <div class="plan-item-label">Referrals</div>
-        <div class="plan-item-content pill-list">${plan.referrals.map((r) => `<span class="pill">${escHtml(r)}</span>`).join('')}</div>
-      </div>` : ''}
-    `;
-  } else {
-    planEmpty.style.display = 'block';
-    planContent.style.display = 'none';
-  }
+  renderPlanEditorFromChart(chart);
 
   // Flags
   const flags = chart.flags;
@@ -2014,6 +2535,9 @@ function renderChart(chart) {
   }
 
   document.getElementById('last-updated').textContent = 'Generated: ' + new Date(chart.generatedAt ?? Date.now()).toLocaleString();
+
+  initChartMindmapLinks();
+  scheduleChartMindmapLinks();
 }
 
 
@@ -2648,20 +3172,7 @@ function escHtml(s) {
 }
 
 // ─── Actions ──────────────────────────────────────────────────────────────────
-document.getElementById('btn-refresh').addEventListener('click', loadLatestChart);
 document.getElementById('btn-highlight-refresh')?.addEventListener('click', loadLatestHighlight);
-document.getElementById('btn-save-soap')?.addEventListener('click', () => { void saveSoapNote(); });
-
-document.getElementById('btn-export').addEventListener('click', () => {
-  if (!currentChart) { alert('No chart to export yet.'); return; }
-  const blob = new Blob([JSON.stringify(currentChart, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `chart_${currentChart.sessionId ?? 'export'}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-});
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 loadLatestChart();
