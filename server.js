@@ -8,8 +8,38 @@ import multer from 'multer';
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
 import os from 'node:os';
+import { Readable } from 'node:stream';
 
 const execAsync = promisify(exec);
+
+/**
+ * GlassesStream serves an HTML viewer at `/` and the live MJPEG feed at `/stream`.
+ * If GLASSES_STREAM_URL is the viewer root, proxy `/stream` so the browser gets frames, not HTML.
+ */
+function resolveGlassesStreamUrl(raw) {
+  const u = (raw || '').trim();
+  if (!u) return '';
+  try {
+    const parsed = new URL(u);
+    const pathOnly = (parsed.pathname || '/').replace(/\/+$/, '') || '/';
+    if (pathOnly === '/') {
+      parsed.pathname = '/stream';
+      return parsed.href;
+    }
+    return u;
+  } catch {
+    return u;
+  }
+}
+
+const _rawGlassesUrl = (process.env.GLASSES_STREAM_URL || '').trim();
+const GLASSES_STREAM_URL = resolveGlassesStreamUrl(_rawGlassesUrl);
+if (_rawGlassesUrl) {
+  console.log('🕶  Glasses video proxy →', GLASSES_STREAM_URL);
+  if (GLASSES_STREAM_URL !== _rawGlassesUrl) {
+    console.log('   (viewer URL was normalized to /stream for MJPEG)');
+  }
+}
 
 const app = express();
 const port = process.env.PORT ? Number(process.env.PORT) : 5179;
@@ -137,6 +167,84 @@ try {
 // Root — serve index.html (iPhone recording page)
 app.get('/', (req, res) => {
   res.sendFile(path.join(process.cwd(), 'public', 'index.html'));
+});
+
+// Recorder UI: whether to use Meta glasses (or any HTTP stream) instead of getUserMedia video
+app.get('/api/recorder-config', (req, res) => {
+  res.json({
+    useGlasses: Boolean(GLASSES_STREAM_URL),
+    glassesFeedUrl: GLASSES_STREAM_URL ? '/glasses-feed' : '',
+  });
+});
+
+// Same-origin proxy so <video>/<img> and captureStream are not blocked by CORS
+app.get('/glasses-feed', (req, res) => {
+  if (!GLASSES_STREAM_URL) {
+    res.status(503).type('text/plain').send('GLASSES_STREAM_URL is not set');
+    return;
+  }
+  const ac = new AbortController();
+
+  fetch(GLASSES_STREAM_URL, { signal: ac.signal, redirect: 'follow' })
+    .then((upstream) => {
+      if (!upstream.ok) {
+        res.status(502).type('text/plain').send(`Upstream HTTP ${upstream.status}`);
+        return;
+      }
+      const ct = upstream.headers.get('content-type');
+      if (ct) res.setHeader('Content-Type', ct);
+      res.setHeader('Cache-Control', 'no-store');
+      if (!upstream.body) {
+        res.status(502).type('text/plain').send('Empty upstream body');
+        return;
+      }
+
+      const body = Readable.fromWeb(upstream.body);
+      let cleaned = false;
+      const stopUpstream = () => {
+        if (cleaned) return;
+        cleaned = true;
+        ac.abort();
+        try {
+          body.destroy();
+        } catch (_) {}
+      };
+
+      // Never use req.once('close') here: for GET, IncomingMessage often emits 'close'
+      // as soon as headers are read, which would abort the stream immediately and crash Node.
+      res.once('close', stopUpstream);
+      req.once('aborted', stopUpstream);
+
+      const detach = () => {
+        res.removeListener('close', stopUpstream);
+        req.removeListener('aborted', stopUpstream);
+      };
+
+      body.on('error', () => {
+        detach();
+        if (!res.writableEnded) {
+          try {
+            res.destroy();
+          } catch (_) {}
+        }
+      });
+      res.on('error', () => {
+        detach();
+        stopUpstream();
+      });
+
+      body.pipe(res);
+    })
+    .catch((e) => {
+      if (res.headersSent) {
+        try {
+          res.destroy();
+        } catch (_) {}
+        return;
+      }
+      const msg = e?.name === 'AbortError' ? 'Client disconnected' : String(e?.message || e);
+      res.status(502).type('text/plain').send(msg);
+    });
 });
 
 // ElevenLabs Scribe token

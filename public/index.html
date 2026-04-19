@@ -345,7 +345,8 @@
     aspect-ratio: 3 / 4;
   }
 
-  #preview {
+  #preview,
+  #glasses-canvas {
     width: 100%;
     height: 100%;
     /* Show full frame (no crop). This may letterbox but avoids "zoomed in" look. */
@@ -353,6 +354,20 @@
     display: block;
     /* Un-mirror camera preview (some browsers show front-cam mirrored by default). */
     transform: scaleX(-1);
+  }
+
+  #glasses-canvas {
+    display: none;
+    transform: none;
+    background: #000;
+  }
+
+  #glasses-img {
+    position: absolute;
+    width: 0;
+    height: 0;
+    opacity: 0;
+    pointer-events: none;
   }
 
   /* Real-time body part overlay (MoveNet) */
@@ -663,6 +678,8 @@
 
 <div class="camera-wrap" id="camera-wrap" role="button" tabindex="0" aria-label="Camera preview — tap to enable if black">
   <video id="preview" autoplay playsinline muted></video>
+  <canvas id="glasses-canvas" aria-hidden="true"></canvas>
+  <img id="glasses-img" alt="" decoding="async" />
   <canvas id="pose-canvas"></canvas>
   <div class="camera-overlay">
     <div class="corner tl"></div>
@@ -762,10 +779,16 @@ const state = {
   videoChunks: 0,
   facingMode: 'environment', // back camera by default for Meta glasses scenario
   sessionId: null,
+  /** null | 'video' | 'mjpeg' — set when GLASSES_STREAM_URL is configured */
+  glassesTransport: null,
+  recorderConfig: { useGlasses: false, glassesFeedUrl: '' },
+  _mjpegRaf: 0,
 };
 
 // ─── DOM refs ─────────────────────────────────────────────────────────────────
 const preview = document.getElementById('preview');
+const glassesCanvas = document.getElementById('glasses-canvas');
+const glassesImg = document.getElementById('glasses-img');
 const cameraWrap = document.getElementById('camera-wrap');
 const card = document.getElementById('card');
 const wave = document.getElementById('wave');
@@ -863,19 +886,184 @@ function showToast(msg, duration = 3000) {
   toastTimer = setTimeout(() => toast.classList.remove('show'), duration);
 }
 
+async function loadRecorderConfig() {
+  try {
+    const r = await fetch('/api/recorder-config');
+    if (r.ok) state.recorderConfig = await r.json();
+  } catch (_) { /* keep defaults */ }
+}
+
+function stopMjpegDraw() {
+  if (state._mjpegRaf) {
+    cancelAnimationFrame(state._mjpegRaf);
+    state._mjpegRaf = 0;
+  }
+}
+
+function drawGlassesMjpegFrame() {
+  if (!glassesImg?.naturalWidth) return;
+  const rect = glassesCanvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  const cw = Math.max(1, Math.round(rect.width * dpr));
+  const ch = Math.max(1, Math.round(rect.height * dpr));
+  if (glassesCanvas.width !== cw) glassesCanvas.width = cw;
+  if (glassesCanvas.height !== ch) glassesCanvas.height = ch;
+  const ctx = glassesCanvas.getContext('2d');
+  const iw = glassesImg.naturalWidth;
+  const ih = glassesImg.naturalHeight;
+  const scale = Math.min(cw / iw, ch / ih);
+  const drawW = iw * scale;
+  const drawH = ih * scale;
+  const offX = (cw - drawW) / 2;
+  const offY = (ch - drawH) / 2;
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, cw, ch);
+  ctx.drawImage(glassesImg, offX, offY, drawW, drawH);
+}
+
+function mjpegDrawLoop() {
+  if (state.glassesTransport !== 'mjpeg') return;
+  drawGlassesMjpegFrame();
+  state._mjpegRaf = requestAnimationFrame(mjpegDrawLoop);
+}
+
+function tryGlassesVideo(feedUrl) {
+  return new Promise((resolve, reject) => {
+    preview.srcObject = null;
+    const sep = feedUrl.includes('?') ? '&' : '?';
+    preview.src = `${feedUrl}${sep}ts=${Date.now()}`;
+    preview.muted = true;
+    const t = setTimeout(() => { cleanup(); reject(new Error('timeout')); }, 4500);
+    function cleanup() {
+      clearTimeout(t);
+      preview.onloadedmetadata = null;
+      preview.onerror = null;
+    }
+    preview.onloadedmetadata = () => { cleanup(); resolve(); };
+    preview.onerror = () => { cleanup(); reject(new Error('video')); };
+  });
+}
+
+function tryGlassesMjpegImg(feedUrl) {
+  glassesImg.src = '';
+  const sep = feedUrl.includes('?') ? '&' : '?';
+  glassesImg.src = `${feedUrl}${sep}ts=${Date.now()}`;
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => { cleanup(); reject(new Error('timeout')); }, 8000);
+    function cleanup() {
+      clearTimeout(t);
+      glassesImg.onload = null;
+      glassesImg.onerror = null;
+    }
+    glassesImg.onload = () => { cleanup(); resolve(); };
+    glassesImg.onerror = () => { cleanup(); reject(new Error('img')); };
+  });
+}
+
 // ─── Camera init ──────────────────────────────────────────────────────────────
 async function initCamera() {
   try {
+    stopMjpegDraw();
+    poseLoopToken++;
+
     if (state.mediaStream) {
       state.mediaStream.getTracks().forEach(t => t.stop());
+      state.mediaStream = null;
     }
+    preview.pause();
+    preview.removeAttribute('src');
+    preview.src = '';
+    preview.srcObject = null;
+    preview.style.display = '';
+    glassesImg.removeAttribute('src');
+    glassesImg.src = '';
+    glassesCanvas.style.display = 'none';
+    state.glassesTransport = null;
+
+    const { useGlasses, glassesFeedUrl } = state.recorderConfig;
+    const hasGlasses = useGlasses && glassesFeedUrl;
+
+    if (hasGlasses) {
+      preview.muted = true;
+      preview.playsInline = true;
+      preview.style.transform = 'none';
+
+      let transport = null;
+      try {
+        await tryGlassesVideo(glassesFeedUrl);
+        transport = 'video';
+      } catch {
+        preview.removeAttribute('src');
+        try { preview.load(); } catch (_) {}
+        try {
+          await tryGlassesMjpegImg(glassesFeedUrl);
+          transport = 'mjpeg';
+        } catch {
+          showToast('⚠️ Glasses feed unavailable — using this device’s camera');
+        }
+      }
+
+      if (transport === 'video') {
+        const audioStream = await navigator.mediaDevices.getUserMedia({
+          video: false,
+          audio: { echoCancellation: false, noiseSuppression: false, sampleRate: 16000 },
+        });
+        state.glassesTransport = 'video';
+        glassesCanvas.style.display = 'none';
+        preview.style.display = '';
+        await preview.play().catch(() => {});
+        if (preview.captureStream) {
+          const vs = preview.captureStream(24);
+          state.mediaStream = new MediaStream([
+            ...vs.getVideoTracks(),
+            ...audioStream.getAudioTracks(),
+          ]);
+          initBodyDetection().catch(() => {});
+          return;
+        }
+        audioStream.getTracks().forEach(tr => tr.stop());
+        showToast('⚠️ Cannot record glasses preview here — using camera');
+      } else if (transport === 'mjpeg') {
+        const audioStream = await navigator.mediaDevices.getUserMedia({
+          video: false,
+          audio: { echoCancellation: false, noiseSuppression: false, sampleRate: 16000 },
+        });
+        state.glassesTransport = 'mjpeg';
+        preview.style.display = 'none';
+        glassesCanvas.style.display = 'block';
+        mjpegDrawLoop();
+        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+        if (glassesCanvas.captureStream) {
+          const vs = glassesCanvas.captureStream(15);
+          state.mediaStream = new MediaStream([
+            ...vs.getVideoTracks(),
+            ...audioStream.getAudioTracks(),
+          ]);
+          initBodyDetection().catch(() => {});
+          return;
+        }
+        stopMjpegDraw();
+        audioStream.getTracks().forEach(tr => tr.stop());
+        showToast('⚠️ Cannot record glasses preview here — using camera');
+      }
+    }
+
+    state.glassesTransport = null;
+    stopMjpegDraw();
+    preview.style.display = '';
+    glassesCanvas.style.display = 'none';
+    preview.removeAttribute('src');
+    preview.src = '';
+    preview.srcObject = null;
+    try { preview.load(); } catch (_) {}
+    preview.style.transform = 'scaleX(-1)';
+    glassesImg.src = '';
+
     state.mediaStream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: state.facingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
       audio: { echoCancellation: false, noiseSuppression: false, sampleRate: 16000 },
     });
     preview.srcObject = state.mediaStream;
-    // Force an un-mirrored preview (counteracts default mirrored camera behavior).
-    preview.style.transform = 'scaleX(-1)';
     await preview.play().catch(() => {});
     initBodyDetection().catch(() => {});
   } catch (err) {
@@ -1053,10 +1241,18 @@ async function initBodyDetection() {
 
   async function tick() {
     if (token !== poseLoopToken) return;
-    if (preview.readyState < 2 || preview.videoWidth === 0 || preview.videoHeight === 0) {
+
+    if (state.glassesTransport === 'mjpeg') {
+      if (!glassesImg.naturalWidth || glassesCanvas.width === 0 || glassesCanvas.height === 0) {
+        requestAnimationFrame(tick);
+        return;
+      }
+    } else if (preview.readyState < 2 || preview.videoWidth === 0 || preview.videoHeight === 0) {
       requestAnimationFrame(tick);
       return;
     }
+
+    const poseSource = state.glassesTransport === 'mjpeg' ? glassesCanvas : preview;
 
     // With object-fit: contain, the displayed video is letterboxed.
     // Draw in CSS pixels and map keypoint coords from video pixels -> displayed rect.
@@ -1066,18 +1262,18 @@ async function initBodyDetection() {
     if (canvas.width !== cw) canvas.width = cw;
     if (canvas.height !== ch) canvas.height = ch;
 
-    const vw = preview.videoWidth;
-    const vh = preview.videoHeight;
+    const vw = state.glassesTransport === 'mjpeg' ? glassesCanvas.width : preview.videoWidth;
+    const vh = state.glassesTransport === 'mjpeg' ? glassesCanvas.height : preview.videoHeight;
     const scale = Math.min(cw / vw, ch / vh);
     const drawW = vw * scale;
     const drawH = vh * scale;
     const offX = (cw - drawW) / 2;
     const offY = (ch - drawH) / 2;
-    // Preview is flipped with CSS scaleX(-1), so mirror keypoint X to match.
-    const map = { scale, offX, offY, flipX: true, videoW: vw };
+    // Webcam preview uses CSS scaleX(-1); glasses POV is not mirrored.
+    const map = { scale, offX, offY, flipX: !state.glassesTransport, videoW: vw };
 
     try {
-      const poses = await poseDetector.estimatePoses(preview, { maxPoses: 1, flipHorizontal: false });
+      const poses = await poseDetector.estimatePoses(poseSource, { maxPoses: 1, flipHorizontal: false });
       if (poses?.[0]?.keypoints) {
         drawBodyParts(ctx, poses[0].keypoints, canvas.width, canvas.height, map);
       } else {
@@ -1531,6 +1727,7 @@ requestWakeLock();
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 async function init() {
+  await loadRecorderConfig();
   await initCamera();
 }
 
