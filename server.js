@@ -397,7 +397,9 @@ app.post('/session/stop', async (req, res, next) => {
         const compressedPath = path.join(VIDEO_DIR, `${id}.mp4`);
         try {
           await execAsync(
-            `ffmpeg -i "${rawPath}" -c:v libx264 -crf 23 -preset fast -c:a aac -b:a 128k -movflags +faststart "${compressedPath}" -y`
+            `ffmpeg -hide_banner -loglevel warning -i "${rawPath}" ` +
+              `-vf "scale=trunc(iw/2)*2:trunc(ih/2)*2" -pix_fmt yuv420p ` +
+              `-c:v libx264 -crf 23 -preset fast -c:a aac -b:a 128k -movflags +faststart "${compressedPath}" -y`
           );
           await fs.unlink(rawPath).catch(() => {});
           videoPath = compressedPath;
@@ -436,8 +438,9 @@ app.post('/session/stop', async (req, res, next) => {
 
     // ── Highlight clip (no Gemini video) ──────────────────────────────────────
     try {
-      const bodyKeyword = normalizeBodyProblem(patientChart?.bodyPartProblem);
-      const chosen = chooseHighlightEvent(focusEvents, bodyKeyword);
+      const bodyKeyword = deriveBodyKeywordFromChart(patientChart);
+      const recEndMs = Math.max(0, Math.round(duration * 1000));
+      const chosen = chooseHighlightEvent(focusEvents, bodyKeyword, recEndMs);
       if (videoPath && chosen?.e) {
         const t0 = Number(chosen.e.t_ms) || 0;
         const t1 = Number(chosen.next?.t_ms);
@@ -620,9 +623,61 @@ function normalizeBodyProblem(s) {
   return t.trim() || null;
 }
 
-function chooseHighlightEvent(focusEvents, targetKeyword) {
+/** Prefer chart.bodyPartProblem; else first bodyPartsExamined entry (Gemini often fills this). */
+function deriveBodyKeywordFromChart(chart) {
+  if (!chart || typeof chart !== 'object') return null;
+  let k = normalizeBodyProblem(chart.bodyPartProblem);
+  if (k) return k;
+  const examined = chart.bodyPartsExamined;
+  if (!Array.isArray(examined) || !examined.length) return null;
+  const first = examined[0];
+  const bp = typeof first?.bodyPart === 'string' ? first.bodyPart : '';
+  const side = typeof first?.side === 'string' ? first.side : '';
+  if (!bp.trim()) return null;
+  const phrase = [side, bp].filter((x) => x && String(x).trim()).join(' ');
+  k = normalizeBodyProblem(phrase);
+  return k || null;
+}
+
+/**
+ * Chart terms vs MoveNet labels (e.g. "wrist" vs "Left Hand") and keypoint names (left_wrist).
+ */
+function focusEventMatchesBodyKeyword(e, keyword) {
+  if (!keyword) return true;
+  const k = String(keyword).toLowerCase();
+  const label = String(e?.label ?? '').toLowerCase();
+  const keypoint = String(e?.keypoint ?? '')
+    .toLowerCase()
+    .replace(/_/g, ' ');
+  if (label.includes(k) || keypoint.includes(k)) return true;
+
+  if (k.includes('wrist') || k === 'hand') {
+    return /\b(hand|wrist)\b/.test(label) || /(wrist|hand)/.test(keypoint);
+  }
+  if (k.includes('forearm') || k === 'arm') {
+    return /(elbow|wrist|hand)/.test(label) || /(elbow|wrist|hand)/.test(keypoint);
+  }
+  if (k.includes('foot')) {
+    return /(foot|ankle)/.test(label) || /(foot|ankle)/.test(keypoint);
+  }
+  if (k.includes('ankle')) {
+    return /(foot|ankle)/.test(label) || /(foot|ankle)/.test(keypoint);
+  }
+  if (k.includes('thigh') || k.includes('shin') || k.includes('leg')) {
+    return /(knee|ankle|foot)/.test(label) || /(knee|ankle|foot)/.test(keypoint);
+  }
+  return false;
+}
+
+/**
+ * Pick the focus segment to highlight: must match affected body part when keyword is set.
+ * Score = (segment length ms) × (focus strength) — longest relevant stretch where pose focus is strong.
+ */
+function chooseHighlightEvent(focusEvents, targetKeyword, recEndMs) {
   if (!Array.isArray(focusEvents) || !focusEvents.length) return null;
   const keyword = targetKeyword ? String(targetKeyword).toLowerCase() : null;
+  const endMs =
+    Number.isFinite(recEndMs) && recEndMs > 0 ? recEndMs : Number(focusEvents[focusEvents.length - 1]?.t_ms) || 0;
 
   let bestIdx = -1;
   let bestScore = -Infinity;
@@ -631,29 +686,51 @@ function chooseHighlightEvent(focusEvents, targetKeyword) {
     const e = focusEvents[i];
     const labelRaw = String(e?.label ?? '');
     const label = labelRaw.toLowerCase();
-    const ok = keyword ? label.includes(keyword) : true;
+    const ok = keyword ? focusEventMatchesBodyKeyword(e, keyword) : true;
     if (!ok) continue;
 
-    // Prefer non-head moments when keyword is unknown (intro chat often centers head).
-    const headPenalty = !keyword && label.includes('head') ? 0.35 : 0;
-    const rank = Number.isFinite(e.rank) ? e.rank : 0;
-
-    // Prefer longer segments when possible: duration until next focus change.
+    const rank = Number.isFinite(e.rank) ? Math.max(0, e.rank) : 0;
     const t0 = Number(e.t_ms) || 0;
-    const t1 = Number(focusEvents[i + 1]?.t_ms);
-    const segMs = Number.isFinite(t1) ? Math.max(0, t1 - t0) : 0;
-    const segBonus = Math.min(0.25, segMs / 20_000); // up to +0.25 for ~20s+
+    const tNext = focusEvents[i + 1]?.t_ms;
+    const t1 = Number.isFinite(tNext) ? tNext : endMs;
+    const segMs = Math.max(0, t1 - t0);
 
-    const score = rank + segBonus - headPenalty;
+    // When we know the clinical body part, prefer long, high-confidence segments of that part only.
+    let score;
+    if (keyword) {
+      const focusWeight = 0.15 + rank; // ~0.15–1.2
+      score = segMs * focusWeight;
+    } else {
+      const headPenalty = label.includes('head') ? 0.35 : 0;
+      const segBonus = Math.min(0.35, segMs / 25_000);
+      score = rank + segBonus - headPenalty;
+    }
+
     if (score > bestScore) {
       bestScore = score;
       bestIdx = i;
     }
   }
 
-  if (bestIdx === -1) return null;
+  if (bestIdx === -1) {
+    if (keyword) {
+      console.warn(
+        `   ℹ️ No focus timeline matched body part "${keyword}" — no highlight clip (check MoveNet labels vs chart).`
+      );
+    }
+    return null;
+  }
+
   const e = focusEvents[bestIdx];
   const next = focusEvents[bestIdx + 1] ?? null;
+  if (keyword) {
+    console.log(
+      `   🎯 Highlight anchor: "${keyword}" @ ${e.label ?? e.keypoint} ` +
+        `(rank ${Number(e.rank).toFixed(2)}, segment ~${Math.round(
+          (Number.isFinite(next?.t_ms) ? next.t_ms : endMs) - Number(e.t_ms)
+        )} ms)`
+    );
+  }
   return { e, next };
 }
 
@@ -665,12 +742,27 @@ async function writeHighlightClip({ sourcePath, sessionId, startMs, durationMs }
   const outName = `${sessionId}_highlight.mp4`;
   const outPath = path.join(VIDEO_DIR, outName);
 
-  // Re-encode a short clip for compatibility (fast enough for ~seconds).
-  await execAsync(
-    `ffmpeg -ss ${startSec.toFixed(3)} -i "${sourcePath}" -t ${durSec.toFixed(3)} ` +
-    `-c:v libx264 -preset veryfast -crf 26 -c:a aac -b:a 96k -movflags +faststart "${outPath}" -y`
-  );
+  await fs.unlink(outPath).catch(() => {});
 
+  const vf = 'scale=trunc(iw/2)*2:trunc(ih/2)*2';
+  const cmd =
+    `ffmpeg -hide_banner -loglevel warning -ss ${startSec.toFixed(3)} -i "${sourcePath}" -t ${durSec.toFixed(3)} ` +
+    `-vf "${vf}" -pix_fmt yuv420p -c:v libx264 -preset veryfast -crf 26 -c:a aac -b:a 96k -movflags +faststart "${outPath}" -y`;
+
+  try {
+    await execAsync(cmd);
+  } catch (e) {
+    await fs.unlink(outPath).catch(() => {});
+    console.warn('   ⚠️ Highlight ffmpeg failed:', (e.message || e).toString().slice(0, 220));
+    return null;
+  }
+
+  const st = await fs.stat(outPath).catch(() => null);
+  if (!st || st.size < 512) {
+    await fs.unlink(outPath).catch(() => {});
+    console.warn('   ⚠️ Highlight output empty — not publishing');
+    return null;
+  }
   return outName;
 }
 
